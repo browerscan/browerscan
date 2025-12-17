@@ -1,0 +1,25 @@
+{
+  "name": "@browserscan/network-injector",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev src/worker.ts --local",
+    "build": "tsc -p tsconfig.json",
+    "deploy": "wrangler deploy src/worker.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "tail": "wrangler tail browserscan-worker"
+  },
+  "dependencies": {
+    "@browserscan/types": "file:../../packages/types",
+    "hono": "^4.6.8",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241112.0",
+    "typescript": "^5.7.2",
+    "vitest": "4.0.14",
+    "wrangler": "4.51.0"
+  }
+}

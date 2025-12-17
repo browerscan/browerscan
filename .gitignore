@@ -1,0 +1,32 @@
+node_modules
+.next
+.vscode
+.DS_Store
+.claude/
+# Environment variables - NEVER commit secrets!
+.env
+.env.*
+.env.local
+.env.production
+.env.development
+
+# Keep the example file for documentation
+!.env.example
+
+# Cloudflare Wrangler configuration with real IDs - NEVER commit!
+# Use wrangler.toml.example as template
+wrangler.toml
+!wrangler.toml.example
+dist
+coverage
+reports
+.vercel
+wrangler-state.json
+*.log
+*.tsbuildinfo
+.wrangler
+.turbo
+.cache
+.dev.vars
+deploy-local.sh
+package-lock.json

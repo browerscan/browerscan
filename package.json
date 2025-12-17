@@ -1,0 +1,38 @@
+{
+  "name": "browserscan-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "packageManager": "npm@10.5.2",
+  "workspaces": [
+    "apps/*",
+    "workers/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:web --workspace apps/web\" \"npm run dev:worker --workspace workers/network-injector\"",
+    "dev:web": "npm run dev --workspace apps/web",
+    "dev:worker": "npm run dev --workspace workers/network-injector",
+    "build": "npm run build:web && npm run build:worker",
+    "build:web": "npm run build --workspace apps/web",
+    "build:worker": "npm run build --workspace workers/network-injector",
+    "lint": "npm run lint --workspace apps/web",
+    "test": "npm run test --workspace apps/web",
+    "test:worker": "npm run test --workspace workers/network-injector",
+    "test:e2e": "npm run test:e2e --workspace apps/web",
+    "typecheck": "npm run typecheck --workspace apps/web",
+    "pages:build": "npm run pages:build --workspace apps/web",
+    "deploy:pages": "npm run deploy --workspace apps/web",
+    "deploy:worker": "npm run deploy --workspace workers/network-injector",
+    "tail:worker": "npm run tail --workspace workers/network-injector",
+    "seed:d1": "tsx scripts/seed-demo.ts"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.1",
+    "@tailwindcss/typography": "0.5.19",
+    "concurrently": "^8.2.2",
+    "globals": "16.5.0",
+    "next": "16.0.7",
+    "tsx": "^4.19.2"
+  }
+}

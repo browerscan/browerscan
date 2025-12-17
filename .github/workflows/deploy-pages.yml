@@ -1,0 +1,30 @@
+name: Deploy Pages
+
+on:
+  push:
+    branches: ['main']
+
+permissions:
+  contents: read
+  deployments: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL }}
+      NEXT_PUBLIC_WORKER_ORIGIN: ${{ vars.NEXT_PUBLIC_WORKER_ORIGIN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm install
+      - run: npm run pages:build
+        working-directory: apps/web
+      - name: Deploy to Cloudflare Pages
+        run: npx opennextjs-cloudflare deploy
+        working-directory: apps/web

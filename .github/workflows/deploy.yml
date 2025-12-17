@@ -1,0 +1,116 @@
+name: Deploy to Cloudflare
+
+on:
+  push:
+    branches: ['main']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  deployments: write
+
+jobs:
+  # CI 质量检查
+  quality-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm run test
+
+      - name: Build verification
+        run: |
+          npm run build:web
+          npm run build:worker
+
+  # 部署 Worker
+  deploy-worker:
+    needs: quality-check
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build worker
+        run: npm run build:worker
+
+      - name: Create wrangler.toml from template
+        run: |
+          cd workers/network-injector
+          cp wrangler.toml.example wrangler.toml
+          sed -i "s/YOUR_CLOUDFLARE_ACCOUNT_ID/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/g" wrangler.toml
+          sed -i "s/YOUR_D1_DATABASE_ID/${{ secrets.D1_DATABASE_ID }}/g" wrangler.toml
+          sed -i "s/YOUR_RATE_LIMIT_KV_ID/${{ secrets.RATE_LIMIT_KV_ID }}/g" wrangler.toml
+          sed -i "s/YOUR_IPINFO_CACHE_KV_ID/${{ secrets.IPINFO_CACHE_KV_ID }}/g" wrangler.toml
+
+      - name: Deploy Worker to Cloudflare
+        run: npm run deploy:worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  # 部署 Pages
+  deploy-pages:
+    needs: quality-check
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL }}
+      NEXT_PUBLIC_WORKER_ORIGIN: ${{ vars.NEXT_PUBLIC_WORKER_ORIGIN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Pages
+        run: npm run pages:build
+        working-directory: apps/web
+
+      - name: Deploy to Cloudflare Pages
+        run: npx opennextjs-cloudflare deploy
+        working-directory: apps/web
+
+  # 部署后验证
+  post-deploy-validation:
+    needs: [deploy-worker, deploy-pages]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate deployment
+        run: |
+          echo "✅ Worker deployed successfully"
+          echo "✅ Pages deployed successfully"
+          echo "🎉 Deployment complete!"

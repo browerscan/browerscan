@@ -1,0 +1,53 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  background-color: #09090b;
+}
+
+body {
+  @apply bg-[#09090b] text-zinc-100 font-sans antialiased;
+  background-image: radial-gradient(circle at top, rgba(255, 255, 255, 0.03), transparent 45%),
+    url('/noise.png');
+  background-size: auto, 200px 200px;
+}
+
+.card-spotlight {
+  position: relative;
+  isolation: isolate;
+}
+
+.card-spotlight::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 200ms ease;
+  background: radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(255, 255, 255, 0.15), transparent 45%);
+  z-index: -1;
+}
+
+.card-spotlight:hover::before {
+  opacity: 1;
+}
+
+.blur-reveal {
+  filter: blur(4px);
+  transition: filter 200ms ease;
+}
+
+.blur-reveal:hover,
+.blur-reveal:focus {
+  filter: blur(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

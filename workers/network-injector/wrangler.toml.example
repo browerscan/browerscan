@@ -1,0 +1,63 @@
+# Cloudflare Workers Configuration Template
+# ==========================================
+# SECURITY: This is a template file. DO NOT commit wrangler.toml with real IDs!
+# Copy this file to wrangler.toml and replace placeholders with your actual values.
+#
+# Quick setup:
+#   cp wrangler.toml.example wrangler.toml
+#   # Edit wrangler.toml with your actual IDs
+#
+# Get your IDs from Cloudflare Dashboard:
+#   Account ID:  https://dash.cloudflare.com/ (in sidebar)
+#   Database ID: https://dash.cloudflare.com/YOUR_ACCOUNT_ID/workers/d1
+#   KV IDs:      https://dash.cloudflare.com/YOUR_ACCOUNT_ID/workers/kv/namespaces
+
+name = "browserscan-network-injector"
+main = "src/worker.ts"
+compatibility_date = "2024-11-27"
+workers_dev = true
+
+# ⚠️ SECURITY NOTE: Account ID is considered low-risk to expose
+# See: https://community.cloudflare.com/t/is-it-safe-to-publish-wrangler-toml-with-account-id-zone-id/116785
+# However, we keep it as placeholder for maximum security in public repos
+account_id = "YOUR_CLOUDFLARE_ACCOUNT_ID"
+
+[vars]
+ENVIRONMENT = "dev"
+
+# D1 Database Configuration
+[[d1_databases]]
+binding = "DB"
+database_name = "browserscan-db"
+# ⚠️ Replace with your actual D1 database ID
+# Get from: wrangler d1 list
+database_id = "YOUR_D1_DATABASE_ID"
+
+# R2 Buckets Configuration
+[[r2_buckets]]
+binding = "REPORTS_BUCKET"
+bucket_name = "browserscan-reports"
+
+# Production KV Namespaces
+[env.production]
+kv_namespaces = [
+  # Rate limiting KV namespace
+  # Get from: wrangler kv:namespace list
+  { binding = "RATE_LIMIT_KV", id = "YOUR_RATE_LIMIT_KV_ID" },
+
+  # IP info cache KV namespace
+  { binding = "IPINFO_CACHE_KV", id = "YOUR_IPINFO_CACHE_KV_ID" }
+]
+
+# ==========================================
+# Setup Instructions
+# ==========================================
+# 1. Copy this file: cp wrangler.toml.example wrangler.toml
+# 2. Get your Cloudflare Account ID from Dashboard
+# 3. Create/list D1 database: wrangler d1 create browserscan-db OR wrangler d1 list
+# 4. Create/list KV namespaces:
+#    wrangler kv:namespace create "RATE_LIMIT_KV" --preview false
+#    wrangler kv:namespace create "IPINFO_CACHE_KV" --preview false
+#    OR: wrangler kv:namespace list
+# 5. Replace all placeholders in wrangler.toml with actual values
+# 6. NEVER commit wrangler.toml to version control!
