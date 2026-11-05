@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
+  alternates: { canonical: '/simulation/turnstile' },
   title: 'Cloudflare Turnstile Test - Privacy-Focused CAPTCHA Alternative',
   description: 'Test Cloudflare Turnstile bot detection in a safe sandbox. Validate tokens and understand how this privacy-focused reCAPTCHA alternative works without sending data to Google.',
   keywords: ['cloudflare turnstile', 'turnstile test', 'turnstile captcha', 'cloudflare bot detection', 'recaptcha alternative', 'privacy captcha', 'turnstile token', 'invisible captcha'],

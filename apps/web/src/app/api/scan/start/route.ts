@@ -2,22 +2,25 @@ import { NextResponse } from 'next/server';
 import { WORKER_ORIGIN, HAS_WORKER_ORIGIN } from '@/lib/env.server';
 
 export async function POST() {
-	if (HAS_WORKER_ORIGIN) {
-		try {
-			const response = await fetch(`${WORKER_ORIGIN}/api/scan/start`, { method: 'POST' });
-      if (response.ok) {
-        return NextResponse.json(await response.json());
-      }
-    } catch (error) {
-      console.error('Worker scan start failed, falling back', error);
-    }
+  if (!HAS_WORKER_ORIGIN) {
+    return NextResponse.json(
+      { status: 'error', message: 'Scan service is not configured' },
+      { status: 503 }
+    );
   }
 
-  return NextResponse.json({
-    status: 'ok',
-    data: {
-      scan_id: crypto.randomUUID(),
-      eta_seconds: 2
-    }
-  });
+  try {
+    const response = await fetch(`${WORKER_ORIGIN}/api/scan/start`, { method: 'POST' });
+    const payload = await response.json().catch(() => ({
+      status: 'error',
+      message: 'Scan service returned an invalid response'
+    }));
+    return NextResponse.json(payload, { status: response.status });
+  } catch {
+    console.error('Worker scan start request failed');
+    return NextResponse.json(
+      { status: 'error', message: 'Scan service is temporarily unavailable' },
+      { status: 502 }
+    );
+  }
 }

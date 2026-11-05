@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
+  alternates: { canonical: '/simulation' },
   title: 'Bot Detection Simulations - reCAPTCHA, Turnstile & Behavioral Analysis',
   description: 'Test bot detection systems in a safe sandbox. Simulate reCAPTCHA v3 scores, Cloudflare Turnstile challenges, and behavioral telemetry analysis. With 51% of web traffic now from bots, understanding detection is critical.',
   keywords: ['bot detection', 'recaptcha simulation', 'turnstile test', 'captcha testing', 'behavioral analysis', 'bot vs human', 'anti-bot testing', 'captcha sandbox', 'detection simulation'],

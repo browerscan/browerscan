@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
+  alternates: { canonical: '/tools/ip-lookup' },
   title: 'IP Address Lookup & Geolocation Tool',
   description: 'Free IP lookup tool with geolocation, ASN, proxy detection, and fraud scoring. Check any IP address for VPN, Tor, hosting provider, and risk assessment.',
   keywords: ['ip lookup', 'ip geolocation', 'ip address lookup', 'ip fraud score', 'vpn detection', 'proxy detection', 'tor detection', 'ip intelligence', 'asn lookup'],

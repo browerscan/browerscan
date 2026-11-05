@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
+  alternates: { canonical: '/knowledge/privacy' },
   title: 'Privacy Policy & Data Handling — How BrowserScan Protects Your Information',
   description: 'Complete transparency on how BrowserScan handles your data. Learn about our minimal collection practices, automatic deletion policies, encryption standards, and commitment to privacy.',
   keywords: ['browser fingerprint privacy', 'data handling policy', 'privacy policy', 'data retention', 'GDPR compliance'],
@@ -229,9 +230,9 @@ export default function PrivacyPage() {
               <div>
                 <h3 className="text-sm font-semibold text-zinc-200">Leak Data Sanitization</h3>
                 <p className="mt-2 text-xs text-zinc-500 leading-relaxed">
-                  WebRTC and DNS leak detection data is processed in real-time and immediately
-                  sanitized. We store only the detection result (leak detected: yes/no) and
-                  anonymized metadata. The raw IP addresses discovered during leak testing are
+                  WebRTC candidate evidence and DNS resolver observation status are processed in real-time
+                  and immediately sanitized. We store only the resulting status and anonymized
+                  metadata. Raw IP addresses discovered during leak testing are
                   never persisted to our database.
                 </p>
               </div>

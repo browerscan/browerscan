@@ -5,29 +5,32 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { getWebRTCIPs } from '@/lib/fingerprint/webrtc';
 
-type LeakStatus = 'pending' | 'testing' | 'safe' | 'leak' | 'unknown';
+type LeakStatus = 'pending' | 'testing' | 'safe' | 'leak' | 'unknown' | 'detected' | 'not-detected';
 
 interface LeakResult {
   webrtc: {
     status: LeakStatus;
     localIps: string[];
     publicIps: string[];
+    detail: string;
   };
   dns: {
     status: LeakStatus;
     servers: string[];
+    detail: string;
   };
   ipv6: {
     status: LeakStatus;
     address: string | null;
+    detail: string;
   };
 }
 
 export default function LeakTestPage() {
   const [result, setResult] = useState<LeakResult>({
-    webrtc: { status: 'pending', localIps: [], publicIps: [] },
-    dns: { status: 'pending', servers: [] },
-    ipv6: { status: 'pending', address: null }
+    webrtc: { status: 'pending', localIps: [], publicIps: [], detail: 'Not tested yet' },
+    dns: { status: 'pending', servers: [], detail: 'Not tested yet' },
+    ipv6: { status: 'pending', address: null, detail: 'Not tested yet' }
   });
   const [publicIp, setPublicIp] = useState<string | null>(null);
   const [testing, setTesting] = useState(false);
@@ -35,12 +38,14 @@ export default function LeakTestPage() {
   const runTests = useCallback(async () => {
     setTesting(true);
     setResult({
-      webrtc: { status: 'testing', localIps: [], publicIps: [] },
-      dns: { status: 'testing', servers: [] },
-      ipv6: { status: 'testing', address: null }
+      webrtc: { status: 'testing', localIps: [], publicIps: [], detail: 'Gathering WebRTC candidates' },
+      dns: { status: 'testing', servers: [], detail: 'Checking resolver evidence availability' },
+      ipv6: { status: 'testing', address: null, detail: 'Checking IPv6 reachability' }
     });
 
-    // Get public IP first
+    let observedPublicIp: string | null = null;
+
+    // Get the public IP used as the comparison baseline.
     try {
       const res = await fetch('/api/tools/ip-lookup', {
         method: 'POST',
@@ -49,11 +54,12 @@ export default function LeakTestPage() {
       });
       if (res.ok) {
         const json = await res.json() as { data: { ip: string } };
-        setPublicIp(json.data.ip);
+        observedPublicIp = json.data.ip;
       }
     } catch {
-      // Ignore
+      observedPublicIp = null;
     }
+    setPublicIp(observedPublicIp);
 
     // Test WebRTC
     try {
@@ -61,53 +67,85 @@ export default function LeakTestPage() {
       const localIps = ips.filter(ip => isPrivateIp(ip));
       const publicIps = ips.filter(ip => !isPrivateIp(ip));
 
-      // Check if any WebRTC public IP differs from our public IP
-      const hasLeak = publicIps.some(ip => ip !== publicIp && Boolean(publicIp));
+      const hasLeak = observedPublicIp
+        ? publicIps.some(ip => ip !== observedPublicIp)
+        : false;
+      const status: LeakStatus = !observedPublicIp
+        ? 'unknown'
+        : hasLeak
+          ? 'leak'
+          : 'safe';
 
       setResult(prev => ({
         ...prev,
         webrtc: {
-          status: publicIps.length === 0 ? 'safe' : hasLeak ? 'leak' : 'safe',
+          status,
           localIps,
-          publicIps
+          publicIps,
+          detail: !observedPublicIp
+            ? 'Public IP baseline unavailable, so WebRTC candidates cannot be compared'
+            : hasLeak
+              ? 'A WebRTC public IP differs from the observed request IP'
+              : publicIps.length === 0
+                ? 'No public IP was exposed in the observed WebRTC candidates'
+                : 'Observed WebRTC public IP matches the request IP'
         }
       }));
     } catch {
       setResult(prev => ({
         ...prev,
-        webrtc: { status: 'unknown', localIps: [], publicIps: [] }
+        webrtc: {
+          status: 'unknown',
+          localIps: [],
+          publicIps: [],
+          detail: 'WebRTC candidate collection was blocked or unavailable'
+        }
       }));
     }
 
-    // DNS test (simplified - would need external service for real test)
+    // A browser cannot read its configured resolver. A truthful DNS leak test
+    // requires unique hostnames observed by an authoritative DNS service.
     setResult(prev => ({
       ...prev,
-      dns: { status: 'safe', servers: ['Using encrypted DNS'] }
+      dns: {
+        status: 'unknown',
+        servers: [],
+        detail: 'Resolver path not observed. BrowserScan does not substitute a public resolver or claim encrypted DNS.'
+      }
     }));
 
-    // IPv6 detection
+    // IPv6 reachability is not itself a leak. Report it separately.
     try {
-      const res = await fetch('https://api64.ipify.org?format=json');
+      const res = await fetch('https://api6.ipify.org?format=json', { cache: 'no-store' });
       if (res.ok) {
         const json = await res.json() as { ip: string };
         const isV6 = json.ip.includes(':');
         setResult(prev => ({
           ...prev,
           ipv6: {
-            status: isV6 ? 'leak' : 'safe',
-            address: isV6 ? json.ip : null
+            status: isV6 ? 'detected' : 'unknown',
+            address: isV6 ? json.ip : null,
+            detail: isV6
+              ? 'IPv6 is reachable. Connectivity alone does not prove a VPN bypass.'
+              : 'The reachability service returned an unexpected non-IPv6 address.'
           }
         }));
+      } else {
+        throw new Error('IPv6 endpoint unavailable');
       }
     } catch {
       setResult(prev => ({
         ...prev,
-        ipv6: { status: 'safe', address: null }
+        ipv6: {
+          status: 'not-detected',
+          address: null,
+          detail: 'No IPv6 connection was observed. This does not prove VPN leak protection.'
+        }
       }));
+    } finally {
+      setTesting(false);
     }
-
-    setTesting(false);
-  }, [publicIp]);
+  }, []);
 
   useEffect(() => {
     runTests();
@@ -119,7 +157,9 @@ export default function LeakTestPage() {
     testing: 'border-sky-500/30 bg-sky-500/10 animate-pulse',
     safe: 'border-emerald-500/30 bg-emerald-500/10',
     leak: 'border-rose-500/30 bg-rose-500/10',
-    unknown: 'border-amber-500/30 bg-amber-500/10'
+    unknown: 'border-amber-500/30 bg-amber-500/10',
+    detected: 'border-sky-500/30 bg-sky-500/10',
+    'not-detected': 'border-zinc-700 bg-zinc-800/40'
   };
 
   const statusIcons = {
@@ -127,7 +167,9 @@ export default function LeakTestPage() {
     testing: '◎',
     safe: '✓',
     leak: '✗',
-    unknown: '?'
+    unknown: '?',
+    detected: '●',
+    'not-detected': '○'
   };
 
   const statusText = {
@@ -135,7 +177,9 @@ export default function LeakTestPage() {
     testing: 'text-sky-400',
     safe: 'text-emerald-400',
     leak: 'text-rose-400',
-    unknown: 'text-amber-400'
+    unknown: 'text-amber-400',
+    detected: 'text-sky-400',
+    'not-detected': 'text-zinc-400'
   };
 
   return (
@@ -146,7 +190,7 @@ export default function LeakTestPage() {
         <p className="mt-4 text-xs uppercase tracking-[0.4em] text-zinc-500">BrowserScan Tools</p>
         <h1 className="text-3xl font-semibold text-zinc-50">WebRTC & DNS Leak Test</h1>
         <p className="mt-2 text-sm text-zinc-400">
-          Detect if your real IP address is being exposed through WebRTC, DNS requests, or IPv6 connections.
+          Compare WebRTC IP evidence, report DNS only when resolver evidence exists, and observe IPv6 reachability.
         </p>
       </div>
 
@@ -165,6 +209,9 @@ export default function LeakTestPage() {
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           className={`rounded-2xl border p-6 ${statusColors[result.webrtc.status]}`}
+          role="region"
+          aria-label="WebRTC leak result"
+          data-state={result.webrtc.status}
         >
           <div className="flex items-start justify-between">
             <div>
@@ -209,6 +256,7 @@ export default function LeakTestPage() {
               )}
             </div>
           )}
+          <p className="mt-3 text-xs text-zinc-400">{result.webrtc.detail}</p>
         </motion.div>
 
         {/* DNS */}
@@ -217,6 +265,9 @@ export default function LeakTestPage() {
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.1 }}
           className={`rounded-2xl border p-6 ${statusColors[result.dns.status]}`}
+          role="region"
+          aria-label="DNS leak result"
+          data-state={result.dns.status}
         >
           <div className="flex items-start justify-between">
             <div>
@@ -237,6 +288,15 @@ export default function LeakTestPage() {
           {result.dns.servers.length > 0 && (
             <p className="mt-3 text-sm text-zinc-300">{result.dns.servers.join(', ')}</p>
           )}
+          <p className="mt-3 text-xs text-zinc-400">{result.dns.detail}</p>
+          <a
+            href="https://one.one.one.one/help/"
+            target="_blank"
+            rel="noreferrer"
+            className="mt-3 inline-block text-xs text-sky-400 hover:text-sky-300"
+          >
+            Check Cloudflare secure DNS configuration ↗
+          </a>
         </motion.div>
 
         {/* IPv6 */}
@@ -245,6 +305,9 @@ export default function LeakTestPage() {
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.2 }}
           className={`rounded-2xl border p-6 ${statusColors[result.ipv6.status]}`}
+          role="region"
+          aria-label="IPv6 connectivity result"
+          data-state={result.ipv6.status}
         >
           <div className="flex items-start justify-between">
             <div>
@@ -252,19 +315,24 @@ export default function LeakTestPage() {
                 <span className={`text-xl ${statusText[result.ipv6.status]}`}>
                   {statusIcons[result.ipv6.status]}
                 </span>
-                <h3 className="text-lg font-semibold text-zinc-100">IPv6 Leak Test</h3>
+                <h3 className="text-lg font-semibold text-zinc-100">IPv6 Reachability</h3>
               </div>
               <p className="mt-1 text-sm text-zinc-400">
                 IPv6 addresses can bypass VPN tunnels if not properly configured.
               </p>
             </div>
             <span className={`rounded-full px-3 py-1 text-xs font-medium uppercase ${statusText[result.ipv6.status]}`}>
-              {result.ipv6.status === 'leak' ? 'IPv6 Detected' : result.ipv6.status}
+              {result.ipv6.status === 'detected'
+                ? 'IPv6 Detected'
+                : result.ipv6.status === 'not-detected'
+                  ? 'Not Observed'
+                  : result.ipv6.status}
             </span>
           </div>
           {result.ipv6.address && (
-            <p className="mt-3 font-mono text-sm text-rose-400">{result.ipv6.address}</p>
+            <p className="mt-3 font-mono text-sm text-sky-400">{result.ipv6.address}</p>
           )}
+          <p className="mt-3 text-xs text-zinc-400">{result.ipv6.detail}</p>
         </motion.div>
       </div>
 
@@ -545,9 +613,10 @@ export default function LeakTestPage() {
             your real identity when you thought you were protected.
           </p>
           <p className="text-sm leading-relaxed text-zinc-400">
-            We do not log your IP addresses or any data from these tests. The leak detection runs entirely
-            in your browser. The only server call we make is to check your public IP so we have something
-            to compare against. Your privacy is the whole point of this tool - we are not about to compromise it.
+            WebRTC candidate collection runs in your browser. BrowserScan calls its own API for the public-IP
+            comparison baseline and an IPv6-only reachability endpoint for the connectivity check. DNS remains
+            unknown unless a resolver path is actually observed; the page never substitutes a resolver or
+            turns a failed request into a safe result.
           </p>
         </div>
 

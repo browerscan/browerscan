@@ -16,27 +16,27 @@ const scanMessages = [
   'Finalizing report…'
 ];
 
+export type ScanConsoleState = 'idle' | 'scanning' | 'complete' | 'demo' | 'error';
+
 interface ScanConsoleProps {
-  isScanning?: boolean;
+  state?: ScanConsoleState;
 }
 
-export function ScanConsole({ isScanning = false }: ScanConsoleProps) {
+export function ScanConsole({ state = 'idle' }: ScanConsoleProps) {
+  const isScanning = state === 'scanning';
   const [messageIndex, setMessageIndex] = useState(0);
-  const [complete, setComplete] = useState(!isScanning);
   const [clock, setClock] = useState<string>('');
 
   // Reset when scanning starts
   useEffect(() => {
     if (isScanning) {
       setMessageIndex(0);
-      setComplete(false);
     }
   }, [isScanning]);
 
   // Animate through messages while scanning
   useEffect(() => {
     if (!isScanning) {
-      setComplete(true);
       return;
     }
 
@@ -52,13 +52,6 @@ export function ScanConsole({ isScanning = false }: ScanConsoleProps) {
 
     return () => clearInterval(interval);
   }, [isScanning]);
-
-  // Mark complete when scanning finishes
-  useEffect(() => {
-    if (!isScanning && messageIndex > 0) {
-      setComplete(true);
-    }
-  }, [isScanning, messageIndex]);
 
   // Keep time client-side to avoid hydration mismatches
   useEffect(() => {
@@ -78,9 +71,17 @@ export function ScanConsole({ isScanning = false }: ScanConsoleProps) {
     >
       <div className="flex items-center gap-2">
         <div
-          className={`h-2 w-2 rounded-full ${isScanning ? 'bg-emerald-500 animate-pulse' : 'bg-emerald-500'}`}
+          className={`h-2 w-2 rounded-full ${
+            state === 'error'
+              ? 'bg-rose-500'
+              : state === 'demo'
+                ? 'bg-amber-500'
+                : isScanning
+                  ? 'bg-emerald-500 animate-pulse'
+                  : 'bg-emerald-500'
+          }`}
           role="status"
-          aria-label={isScanning ? 'Scanning in progress' : 'Scan ready'}
+          aria-label={`Scan state: ${state}`}
         />
         <p className="text-emerald-400" aria-label="BrowserScan Engine version 1.0">[scan] BrowserScan Engine v1.0</p>
       </div>
@@ -101,8 +102,7 @@ export function ScanConsole({ isScanning = false }: ScanConsoleProps) {
               <span className="text-emerald-500">›</span> Processing...
             </p>
           </>
-        ) : (
-          // Show completion state
+        ) : state === 'complete' ? (
           <>
             <p className="text-emerald-200/80">
               <span className="text-emerald-500">›</span> Sensor network initialized
@@ -116,16 +116,41 @@ export function ScanConsole({ isScanning = false }: ScanConsoleProps) {
             <p className="text-emerald-200/80">
               <span className="text-emerald-500">›</span> Report generated
             </p>
-            {complete && (
-              <p className="text-emerald-400 font-medium">
-                ✓ Scan complete — all systems nominal
-              </p>
-            )}
+            <p className="text-emerald-400 font-medium">
+              ✓ Live scan complete
+            </p>
+          </>
+        ) : state === 'demo' ? (
+          <>
+            <p className="text-amber-200/80">
+              <span className="text-amber-500">›</span> Demo dataset loaded
+            </p>
+            <p className="text-amber-200/80">
+              <span className="text-amber-500">›</span> No browser measurement was performed
+            </p>
+            <p className="font-medium text-amber-400">Demo mode — values are illustrative</p>
+          </>
+        ) : state === 'error' ? (
+          <>
+            <p className="text-rose-200/80">
+              <span className="text-rose-500">›</span> Live scan service unavailable
+            </p>
+            <p className="text-rose-200/80">
+              <span className="text-rose-500">›</span> No report was generated
+            </p>
+            <p className="font-medium text-rose-400">Retry when the service is available</p>
+          </>
+        ) : (
+          <>
+            <p className="text-zinc-300">
+              <span className="text-emerald-500">›</span> Sensors ready
+            </p>
+            <p className="text-zinc-400">Start a live scan to collect browser evidence.</p>
           </>
         )}
       </div>
       <div className="mt-2 pt-2 border-t border-emerald-500/20 flex justify-between text-emerald-500/60">
-        <span role="status" aria-label={`Scan status: ${isScanning ? 'Scanning' : 'Ready'}`}>Status: {isScanning ? 'Scanning' : 'Ready'}</span>
+        <span role="status" aria-label={`Scan status: ${state}`}>Status: {state}</span>
         <span aria-label={`Current time: ${clock || 'loading'}`}>{clock || '—:—:—'}</span>
       </div>
     </div>

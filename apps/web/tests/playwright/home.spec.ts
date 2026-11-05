@@ -1,7 +1,21 @@
 import { test, expect } from '@playwright/test';
+import { sampleReport } from '../../src/lib/sample-report';
 
 test.describe('BrowserScan Homepage', () => {
   test.beforeEach(async ({ page }) => {
+    await page.route('**/api/scan/latest', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          status: 'ok',
+          data: {
+            ...sampleReport,
+            meta: { ...sampleReport.meta, scan_id: 'live-home-test' }
+          }
+        })
+      });
+    });
     await page.goto('/');
   });
 
@@ -106,23 +120,21 @@ test.describe('Leak Test Tool', () => {
   });
 });
 
-test.describe('Port Scanner Tool', () => {
+test.describe('Network Exposure Assessment Tool', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/tools/port-scan');
   });
 
-  test('page loads with port scan heading', async ({ page }) => {
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  test('page loads with exposure assessment heading', async ({ page }) => {
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Network Exposure Assessment');
   });
 
-  test('shows port list', async ({ page }) => {
-    // Common ports should be visible
-    await expect(page.getByText(/22|80|443/)).toBeVisible({ timeout: 5000 });
+  test('states that TCP ports are not probed', async ({ page }) => {
+    await expect(page.getByText(/No TCP port probe is performed/i)).toBeVisible();
   });
 
-  test('has scan button', async ({ page }) => {
-    const scanButton = page.getByRole('button', { name: /scan/i });
-    await expect(scanButton).toBeVisible();
+  test('has assessment button', async ({ page }) => {
+    await expect(page.getByRole('button', { name: /assess network/i })).toBeVisible();
   });
 });
 

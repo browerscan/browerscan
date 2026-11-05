@@ -124,7 +124,7 @@ export default function PdfGenPage() {
           </li>
           <li className="flex items-center gap-2">
             <span className="text-emerald-400">✓</span>
-            WebRTC and DNS leak detection results
+            WebRTC evidence and DNS resolver observation status
           </li>
           <li className="flex items-center gap-2">
             <span className="text-emerald-400">✓</span>
@@ -289,10 +289,10 @@ export default function PdfGenPage() {
                 <p className="mb-2 font-medium text-zinc-200">Network Section</p>
                 <ul className="space-y-1 text-zinc-500">
                   <li>• VPN/proxy detection results</li>
-                  <li>• TLS fingerprint (JA3/JA4)</li>
+                  <li>• Edge-observed TLS version and cipher</li>
                   <li>• WebRTC leak status</li>
-                  <li>• DNS leak test results</li>
-                  <li>• IPv6 exposure check</li>
+                  <li>• DNS resolver observation status</li>
+                  <li>• IPv6 reachability observation</li>
                 </ul>
               </div>
             </div>

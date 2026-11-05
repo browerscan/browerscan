@@ -1,8 +1,18 @@
 import type { NextRequest } from 'next/server';
 import { WORKER_ORIGIN, HAS_WORKER_ORIGIN } from '@/lib/env.server';
 
+function escapeHtml(value: string): string {
+	return value
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#39;');
+}
+
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
 	const { id: scanId } = await params;
+	const safeScanId = escapeHtml(scanId);
 
 	if (HAS_WORKER_ORIGIN) {
 		try {
@@ -40,7 +50,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       <div class="card">
         <div class="badge">Preview Only</div>
         <h1>Report not ready yet</h1>
-        <p>The PDF for scan <strong>${scanId}</strong> is not available. If you just triggered a scan, wait a few seconds and try again.</p>
+        <p>The PDF for scan <strong>${safeScanId}</strong> is not available. If you just triggered a scan, wait a few seconds and try again.</p>
       </div>
     </body>
   </html>`;

@@ -1,12 +1,13 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Online Port Scanner - Free Network Security Testing Tool',
-  description: 'Free online port scanner to check open ports and network security. Detect exposed services like RDP, SSH, FTP, MySQL. Over 3.5 million systems have RDP port 3389 exposed to the internet.',
-  keywords: ['port scanner', 'online port scan', 'check open ports', 'network security test', 'rdp port scan', 'ssh port scan', 'firewall test', 'nmap alternative', 'tcp port scanner'],
+  alternates: { canonical: '/tools/port-scan' },
+  title: 'Network Exposure Assessment - IP Reputation & Hosting Signals',
+  description: 'Assess an IP address for ASN, hosting, proxy, VPN, Tor, and reputation signals. BrowserScan clearly reports that no TCP port probe is performed.',
+  keywords: ['network exposure assessment', 'ip reputation', 'hosting detection', 'proxy detection', 'vpn detection', 'asn lookup', 'port scan limitations'],
   openGraph: {
-    title: 'Online Port Scanner | BrowserScan',
-    description: 'Free online port scanner to check open ports and network security. Detect exposed services and potential vulnerabilities.',
+    title: 'Network Exposure Assessment | BrowserScan',
+    description: 'Review public network identity and reputation signals without inventing TCP port results.',
   },
 };
 

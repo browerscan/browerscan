@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
+  alternates: { canonical: '/simulation/recaptcha' },
   title: 'reCAPTCHA v3 Score Simulator - Understand Google Bot Detection',
   description: 'Simulate Google reCAPTCHA v3 scores from 0.0 to 1.0. Learn how score thresholds work for bot detection. reCAPTCHA is used on 10M+ websites with ~50% of bot traffic still passing through.',
   keywords: ['recaptcha v3', 'recaptcha score', 'recaptcha simulator', 'google recaptcha', 'bot detection', 'captcha bypass', 'recaptcha threshold', 'invisible captcha', 'recaptcha testing'],

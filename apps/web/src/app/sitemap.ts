@@ -17,7 +17,7 @@ const routes: RouteConfig[] = [
   { path: '/tools', priority: 0.9, changeFrequency: 'weekly' },
   { path: '/tools/ip-lookup', priority: 0.9, changeFrequency: 'weekly' },
   { path: '/tools/leak-test', priority: 0.9, changeFrequency: 'weekly' },
-  { path: '/tools/port-scan', priority: 0.8, changeFrequency: 'weekly' },
+  { path: '/tools/port-scan', priority: 0.6, changeFrequency: 'monthly' },
   { path: '/tools/pdf-gen', priority: 0.7, changeFrequency: 'monthly' },
   { path: '/tools/cookie-check', priority: 0.7, changeFrequency: 'weekly' },
 

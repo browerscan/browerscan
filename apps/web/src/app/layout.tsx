@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
@@ -7,22 +6,12 @@ import { QueryProvider } from '@/components/layout/query-provider';
 import { ToastProvider } from '@/components/ui/toast';
 import { SITE_URL } from '@/lib/env.server';
 
-const geistSans = Geist({
-	variable: "--font-geist-sans",
-	subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-	variable: "--font-geist-mono",
-	subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
 	title: {
 		default: 'BrowserScan — Browser Fingerprint & Trust Score Analyzer | Free Online Tool',
 		template: '%s | BrowserScan',
 	},
-	description: 'Free browser fingerprint analyzer and trust score calculator. Detect VPNs, proxies, WebRTC leaks, DNS leaks, bot signatures, and spoofing attempts with real-time JA3/JA4 TLS fingerprinting and 50+ detection signals.',
+	description: 'Free browser fingerprint analyzer and trust score calculator. Detect VPNs, proxies, WebRTC leaks, bot signatures, and spoofing attempts with edge-observed TLS metadata and 50+ detection signals.',
 	metadataBase: new URL(SITE_URL),
 	keywords: [
 		'browser fingerprint',
@@ -35,8 +24,7 @@ export const metadata: Metadata = {
 		'fingerprint analysis',
 		'canvas fingerprint',
 		'webgl fingerprint',
-		'ja3 fingerprint',
-		'ja4 fingerprint',
+		'tls metadata',
 		'vpn detection',
 		'proxy detection',
 		'browser privacy test',
@@ -58,7 +46,7 @@ export const metadata: Metadata = {
 	},
 	openGraph: {
 		title: 'BrowserScan — Free Browser Fingerprint & Trust Score Analyzer',
-		description: 'Analyze your browser fingerprint and get a trust score. Detect WebRTC leaks, DNS leaks, VPNs, proxies, and bot signatures in real-time.',
+		description: 'Analyze your browser fingerprint and get a trust score. Compare WebRTC evidence, DNS capability status, VPN/proxy signals, and bot indicators.',
 		type: 'website',
 		siteName: 'BrowserScan',
 		locale: 'en_US',
@@ -100,7 +88,7 @@ export default function RootLayout({
 				<meta name="theme-color" content="#10b981" media="(prefers-color-scheme: light)" />
 				<meta name="theme-color" content="#09090b" media="(prefers-color-scheme: dark)" />
 			</head>
-			<body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+			<body className="antialiased">
 				<a
 					href="#main-content"
 					className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-emerald-500 focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-2 focus:ring-offset-zinc-900"

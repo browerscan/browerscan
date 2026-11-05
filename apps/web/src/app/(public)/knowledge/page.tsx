@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 export const metadata = {
+  alternates: { canonical: '/knowledge' },
   title: 'Knowledge Base — BrowserScan',
   description: 'Learn about browser fingerprinting methodology, detection algorithms, and privacy practices.'
 };
@@ -211,7 +212,7 @@ export default function KnowledgeIndexPage() {
               <p className="text-xs font-medium text-amber-400">Network Signals</p>
               <ul className="space-y-1 text-xs text-zinc-500">
                 <li>IP address and ASN</li>
-                <li>TLS fingerprint (JA3/JA4)</li>
+                <li>Edge-observed TLS version and cipher</li>
                 <li>WebRTC local IPs</li>
                 <li>DNS resolver</li>
                 <li>Connection type</li>

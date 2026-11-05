@@ -1,33 +1,29 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-import { sampleReport } from '@/lib/sample-report';
 import { WORKER_ORIGIN, HAS_WORKER_ORIGIN } from '@/lib/env.server';
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
 	const { id: scanId } = await params;
 
-	if (HAS_WORKER_ORIGIN) {
-		try {
-			const response = await fetch(`${WORKER_ORIGIN}/api/scan/${scanId}`, { cache: 'no-store' });
-
-      if (response.ok) {
-        return NextResponse.json(await response.json(), { status: response.status });
-      }
-
-      console.warn('Worker scan fetch returned', response.status);
-    } catch (error) {
-      console.error('Worker scan fetch failed, using fallback', error);
-    }
+  if (!HAS_WORKER_ORIGIN) {
+    return NextResponse.json(
+      { status: 'error', message: 'Scan service is not configured' },
+      { status: 503 }
+    );
   }
 
-  const fallback = {
-    ...sampleReport,
-    meta: {
-      ...sampleReport.meta,
-      scan_id: scanId,
-      timestamp: Math.floor(Date.now() / 1000)
-    }
-  };
-
-  return NextResponse.json({ status: 'ok', data: fallback });
+  try {
+    const response = await fetch(`${WORKER_ORIGIN}/api/scan/${scanId}`, { cache: 'no-store' });
+    const payload = await response.json().catch(() => ({
+      status: 'error',
+      message: 'Scan service returned an invalid response'
+    }));
+    return NextResponse.json(payload, { status: response.status });
+  } catch {
+    console.error('Worker scan lookup request failed');
+    return NextResponse.json(
+      { status: 'error', message: 'Scan service is temporarily unavailable' },
+      { status: 502 }
+    );
+  }
 }

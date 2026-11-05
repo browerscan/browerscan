@@ -50,11 +50,11 @@ const jsonLd = {
     'Browser Fingerprint Analysis',
     'Trust Score Calculation (0-100)',
     'WebRTC Leak Detection',
-    'DNS Leak Testing',
+    'DNS resolver observation status',
     'VPN/Proxy Detection',
     'Bot Detection',
     'Canvas Fingerprinting',
-    'TLS JA3/JA4 Fingerprinting',
+    'Edge-observed TLS metadata',
     'Hardware Profiling',
     'Timezone Consistency Checks',
   ],
@@ -120,15 +120,39 @@ const faqJsonLd = {
 };
 
 export default function HomePage() {
-  const { data, isScanning, rescan } = useLiveReport();
-  const report = data!;
+  const {
+    data: report,
+    error: reportError,
+    isError,
+    isLoading,
+    isScanning,
+    refetch,
+    rescan,
+    scanError,
+    showDemo
+  } = useLiveReport();
 
   const hasLiveScan = report?.meta?.scan_id && report.meta.scan_id !== 'demo-scan-id';
+  const isDemo = report?.meta?.scan_id === 'demo-scan-id';
+  const activeError = scanError ?? (isError ? reportError : null);
+  const consoleState = isScanning
+    ? 'scanning'
+    : activeError
+      ? 'error'
+      : isDemo
+        ? 'demo'
+        : hasLiveScan
+          ? 'complete'
+          : 'idle';
   const subtitle = isScanning
     ? 'Scanning your browser fingerprint...'
     : hasLiveScan
-      ? `Scan #${report.meta.scan_id.slice(0, 8)} • ${new Date(report.meta.timestamp * 1000).toLocaleString()}`
-      : 'Ready to scan — click Start Scan to capture a live report';
+      ? `Scan #${report!.meta.scan_id.slice(0, 8)} • ${new Date(report!.meta.timestamp * 1000).toLocaleString()}`
+      : isDemo
+        ? 'Illustrative demo — no live browser evidence was collected'
+        : isLoading
+          ? 'Checking for a live report...'
+          : 'Ready to scan — start a live measurement when the service is available';
 
   return (
     <>
@@ -152,7 +176,7 @@ export default function HomePage() {
       <PageShell
         title="Browser Fingerprint & Trust Score Analyzer"
         subtitle={subtitle}
-        actions={<ScanConsole isScanning={isScanning} />}
+        actions={<ScanConsole state={consoleState} />}
       >
         {/* SEO Intro Section */}
         <div className="mb-8 rounded-xl border border-zinc-800/60 bg-zinc-900/30 p-6">
@@ -162,10 +186,68 @@ export default function HomePage() {
             This is your <strong className="text-zinc-200">browser fingerprint</strong>. Companies use it to track you,
             detect fraud, and distinguish real users from bots. BrowserScan shows you exactly what
             websites see and calculates your <strong className="text-zinc-200">trust score</strong> based on 50+ data points
-            including WebRTC leaks, DNS configuration, TLS fingerprints, and behavioral patterns.
+            including WebRTC evidence, DNS capability status, edge TLS metadata, and behavioral patterns.
           </p>
         </div>
 
+        {!report && (
+          <div
+            className={`rounded-2xl border p-6 ${
+              activeError
+                ? 'border-rose-500/30 bg-rose-500/5'
+                : 'border-zinc-800 bg-zinc-900/40'
+            }`}
+            role={activeError ? 'alert' : 'status'}
+            aria-label={activeError ? 'Live scan unavailable' : 'No live report'}
+          >
+            <h2 className="text-lg font-semibold text-zinc-100">
+              {activeError ? 'Live scan unavailable' : 'No live report yet'}
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm text-zinc-400">
+              {activeError
+                ? 'BrowserScan did not generate a report, and no sample values have been substituted.'
+                : 'Start a scan to collect current browser and network evidence.'}
+            </p>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={rescan}
+                disabled={isScanning}
+                className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-300 transition hover:bg-emerald-500/20 disabled:opacity-50"
+              >
+                {isScanning ? 'Scanning…' : 'Start live scan'}
+              </button>
+              {activeError && (
+                <button
+                  type="button"
+                  onClick={() => void refetch()}
+                  className="rounded-xl border border-zinc-700 px-4 py-2 text-sm text-zinc-300 transition hover:border-zinc-500"
+                >
+                  Retry report service
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={showDemo}
+                className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-2 text-sm text-amber-300 transition hover:bg-amber-500/10"
+              >
+                View labeled demo
+              </button>
+            </div>
+          </div>
+        )}
+
+        {isDemo && (
+          <div
+            className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200"
+            role="status"
+            aria-label="Demo report"
+          >
+            <strong>DEMO DATA</strong> — every value below is illustrative and must not be treated as a live scan result.
+          </div>
+        )}
+
+        {report && (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-4">
           {/* Health Ring - Hero Card */}
           <div className="col-span-1 md:col-span-2 row-span-2 rounded-2xl border border-zinc-800/80 bg-gradient-to-br from-zinc-950/80 to-zinc-900/60 backdrop-blur-sm p-6">
@@ -211,6 +293,7 @@ export default function HomePage() {
           {/* Software Panel */}
           <SoftwarePanel report={report} />
         </div>
+        )}
 
         {/* Extended SEO Content Section */}
         <section className="mt-12 space-y-8">
@@ -306,7 +389,7 @@ export default function HomePage() {
         </section>
 
         {/* AI Chat Widget */}
-        <ChatWidget scanId={report?.meta?.scan_id} />
+        {report && <ChatWidget scanId={report.meta.scan_id} />}
       </PageShell>
     </>
   );

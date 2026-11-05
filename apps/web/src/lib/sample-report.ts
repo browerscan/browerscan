@@ -36,7 +36,9 @@ export const sampleReport: ScanReport = {
       fraud_score: 85
     },
     protocols: {
-      tls_ja3: 'e7d705a3286e19ea42f55823113e2755',
+      tls_profile: 'TLS 1.3 · AEAD-AES128-GCM-SHA256 · h3',
+      tls_cipher: 'AEAD-AES128-GCM-SHA256',
+      tls_profile_method: 'cloudflare-edge-metadata',
       tls_version: 'TLS 1.3',
       http_version: 'h3',
       tcp_os_guess: 'Linux 5.x'

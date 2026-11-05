@@ -9,6 +9,8 @@ import { getWebGLFingerprint } from './webgl';
 import { getAudioFingerprint } from './audio';
 import { getFontsFingerprint } from './fonts';
 import { getWebRTCIPs } from './webrtc';
+import { getExtendedFingerprint } from './extended';
+import type { ExtendedFingerprint } from '@browserscan/types';
 
 export interface BrowserFingerprint {
   visitor_id: string;
@@ -27,6 +29,7 @@ export interface BrowserFingerprint {
   plugins: string[];
   is_webdriver: boolean;
   is_headless: boolean;
+  extended: ExtendedFingerprint;
 }
 
 /**
@@ -38,12 +41,13 @@ export async function collectFingerprint(): Promise<BrowserFingerprint> {
   const fpResult = await fp.get();
 
   // Collect custom fingerprints in parallel
-  const [canvas, webgl, audio, fonts, webrtcIps] = await Promise.all([
+  const [canvas, webgl, audio, fonts, webrtcIps, extended] = await Promise.all([
     getCanvasFingerprint(),
     getWebGLFingerprint(),
     getAudioFingerprint(),
     getFontsFingerprint(),
-    getWebRTCIPs()
+    getWebRTCIPs(),
+    getExtendedFingerprint()
   ]);
 
   // Get navigator data
@@ -68,7 +72,8 @@ export async function collectFingerprint(): Promise<BrowserFingerprint> {
     audio_hash: audio,
     plugins: getPlugins(),
     is_webdriver: detectWebdriver(),
-    is_headless: detectHeadless()
+    is_headless: detectHeadless(),
+    extended
   };
 }
 
@@ -225,7 +230,8 @@ export async function performScan(apiBase: string = ''): Promise<{
       audio_hash: fingerprint.audio_hash,
       plugins: fingerprint.plugins,
       is_webdriver: fingerprint.is_webdriver,
-      is_headless: fingerprint.is_headless
+      is_headless: fingerprint.is_headless,
+      extended: fingerprint.extended
     })
   });
 

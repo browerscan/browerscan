@@ -1,12 +1,13 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Free Security Tools - IP Lookup, Leak Tests, Port Scanner & More',
-  description: 'Professional security tools for IP intelligence, WebRTC/DNS leak testing, port scanning, cookie analysis, and PDF report generation. With 37% of internet traffic being malicious bots, security visibility is essential.',
-  keywords: ['security tools', 'ip lookup tool', 'leak test', 'port scanner', 'cookie analyzer', 'privacy tools', 'network security', 'penetration testing tools', 'free security tools'],
+  alternates: { canonical: '/tools' },
+  title: 'Free Security Tools - IP Lookup, Leak Tests & Exposure Assessment',
+  description: 'Security tools for IP intelligence, WebRTC evidence, DNS capability status, network exposure assessment, cookie analysis, and PDF report generation.',
+  keywords: ['security tools', 'ip lookup tool', 'leak test', 'network exposure assessment', 'cookie analyzer', 'privacy tools', 'network security', 'free security tools'],
   openGraph: {
     title: 'Free Security Tools | BrowserScan',
-    description: 'Professional security utilities: IP lookup, WebRTC/DNS leak tests, port scanner, cookie analyzer, and PDF report generator. All free, no registration required.',
+    description: 'Security utilities for IP intelligence, WebRTC evidence, network exposure assessment, cookie analysis, and PDF reports.',
   },
 };
 

@@ -19,8 +19,8 @@ const config: Config = {
         info: '#0ea5e9'
       },
       fontFamily: {
-        sans: ['var(--font-geist-sans)', ...defaultTheme.fontFamily.sans],
-        mono: ['var(--font-geist-mono)', ...defaultTheme.fontFamily.mono]
+        sans: ['Inter', 'ui-sans-serif', 'system-ui', ...defaultTheme.fontFamily.sans],
+        mono: ['SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', ...defaultTheme.fontFamily.mono]
       },
       boxShadow: {
         glowSafe: '0 0 20px -5px rgba(16, 185, 129, 0.4)',
@@ -30,10 +30,15 @@ const config: Config = {
         shimmer: {
           '0%': { backgroundPosition: '-100% 0' },
           '100%': { backgroundPosition: '200% 0' }
+        },
+        toastIn: {
+          '0%': { opacity: '0', transform: 'translateY(0.5rem) scale(0.98)' },
+          '100%': { opacity: '1', transform: 'translateY(0) scale(1)' }
         }
       },
       animation: {
-        shimmer: 'shimmer 2s linear infinite'
+        shimmer: 'shimmer 2s linear infinite',
+        toastIn: 'toastIn 180ms ease-out'
       }
     }
   },

@@ -923,7 +923,7 @@ export default function BehaviorSimPage() {
                 <li>• Browser fingerprinting</li>
                 <li>• JavaScript execution timing</li>
                 <li>• Canvas/WebGL rendering</li>
-                <li>• TLS fingerprinting (JA3)</li>
+                <li>• Edge-observed TLS metadata</li>
                 <li>• IP reputation checks</li>
                 <li>• Cookie and storage analysis</li>
               </ul>

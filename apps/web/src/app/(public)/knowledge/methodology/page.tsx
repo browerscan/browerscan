@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
+  alternates: { canonical: '/knowledge/methodology' },
   title: 'Browser Fingerprinting Scoring Methodology — Complete Trust Score Algorithm | BrowserScan',
   description: 'Deep-dive technical documentation on how BrowserScan calculates trust scores using multi-layered fingerprinting, network analysis, and behavioral telemetry. Learn the exact deduction rules and detection algorithms.',
   keywords: ['browser fingerprinting methodology', 'trust score algorithm', 'fingerprint detection', 'bot detection scoring', 'privacy analysis'],
@@ -221,7 +222,7 @@ export default function MethodologyPage() {
             </div>
             <p className="mt-3 text-xs text-zinc-500 leading-relaxed">
               Your request hits our Cloudflare Worker which extracts ASN, country, city,
-              TLS fingerprint (JA3), and HTTP version before any JavaScript runs.
+              negotiated TLS version, cipher, and HTTP version before any JavaScript runs.
             </p>
           </div>
           <div className="rounded-xl bg-zinc-900/50 p-5 border border-zinc-800">
@@ -388,10 +389,10 @@ export default function MethodologyPage() {
         <ul className="mt-3 space-y-2 text-xs text-zinc-500">
           <li>
             <strong className="text-zinc-400">Data Sources:</strong> IP intelligence from
-            ipinfo.io, MaxMind GeoLite2, and proprietary fraud databases.
+            IPBot with IPinfo fallback when configured.
           </li>
           <li>
-            <strong className="text-zinc-400">TLS Fingerprinting:</strong> JA3 hash computed
+            <strong className="text-zinc-400">TLS Metadata:</strong> negotiated version and cipher observed
             from TLS handshake by Cloudflare edge.
           </li>
           <li>

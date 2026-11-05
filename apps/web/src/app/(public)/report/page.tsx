@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 export const metadata = {
+  alternates: { canonical: '/report' },
   title: 'Deep Report — BrowserScan',
   description: 'Comprehensive browser fingerprint analysis with network, hardware, software, and consistency intelligence.'
 };
@@ -9,7 +10,7 @@ const reportSections = [
   {
     href: '/report/network',
     title: 'Network Intelligence',
-    desc: 'ASN analysis, JA3/JA4 fingerprints, TLS protocol stacks, and leak telemetry from edge detection.',
+    desc: 'ASN analysis, negotiated TLS metadata, protocol stacks, and leak telemetry from edge detection.',
     icon: '🌐',
     color: 'border-emerald-500/30 hover:border-emerald-500/50'
   },
@@ -86,10 +87,10 @@ export default function ReportIndexPage() {
           <div className="space-y-2">
             <p className="text-xs font-medium text-sky-400">Passive Signals</p>
             <ul className="space-y-1 text-xs text-zinc-500">
-              <li>TLS/JA3 fingerprinting</li>
+              <li>Negotiated TLS version and cipher</li>
               <li>HTTP header analysis</li>
               <li>IP geolocation</li>
-              <li>DNS resolver detection</li>
+              <li>DNS resolver capability status</li>
             </ul>
           </div>
         </div>
@@ -159,14 +160,14 @@ export default function ReportIndexPage() {
             Your IP address is just the beginning. When you connect to a website through our
             platform, we analyze your connection at multiple layers. We identify your Autonomous
             System Number (ASN), which tells us which network you are connecting from. We detect
-            if you are using a VPN, proxy, or Tor exit node. We check your TLS fingerprint using
-            JA3 and JA4 algorithms, which can identify your browser type even if you spoof your
-            user agent.
+            if you are using a VPN, proxy, or Tor exit node. We report the negotiated TLS version,
+            cipher, and HTTP protocol observed at the edge. BrowserScan does not claim to calculate
+            JA3 or JA4 without the raw ClientHello.
           </p>
           <p className="text-sm leading-relaxed text-zinc-400">
             The Network Intelligence report shows you everything a sophisticated website can
-            learn from your connection. This includes leak detection for WebRTC and DNS, which
-            can expose your real IP address even when using anonymization tools. If there is
+            learn from your connection. WebRTC candidates can expose additional public IPs; DNS
+            remains unknown unless the resolver path is actually observed. If there is
             a mismatch between your claimed location and your actual network origin, we will
             flag it. These are the same techniques used by banks, streaming services, and fraud
             detection systems.
@@ -235,7 +236,7 @@ export default function ReportIndexPage() {
                 </tr>
                 <tr>
                   <td className="py-3 text-orange-400">TLS Fingerprint</td>
-                  <td className="py-3 text-zinc-400">JA3/JA4 cipher suite ordering</td>
+                  <td className="py-3 text-zinc-400">Negotiated TLS version, cipher, and HTTP protocol</td>
                   <td className="py-3 text-right font-mono">High</td>
                 </tr>
               </tbody>

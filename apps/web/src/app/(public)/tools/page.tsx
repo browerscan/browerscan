@@ -14,14 +14,14 @@ const tools = [
   {
     href: '/tools/leak-test',
     title: 'WebRTC & DNS Leak Test',
-    desc: 'Detect if your real IP is exposed through WebRTC or DNS requests.',
+    desc: 'Compare WebRTC IP evidence and show an explicit unknown state when DNS resolver evidence is unavailable.',
     icon: '🔍',
     color: 'rose'
   },
   {
     href: '/tools/port-scan',
-    title: 'Port Scanner',
-    desc: 'Check common ports (SSH, HTTP, HTTPS, RDP) for exposure status.',
+    title: 'Network Exposure Assessment',
+    desc: 'Inspect ASN, hosting, proxy, VPN, Tor, and reputation signals without pretending to probe TCP ports.',
     icon: '🔌',
     color: 'amber'
   },
@@ -204,9 +204,10 @@ export default function ToolsIndexPage() {
             DNS leaks are equally problematic. When you type a website address, your browser needs
             to look up the IP address associated with that domain. If these DNS requests go through
             your ISP instead of your VPN, anyone monitoring your connection can see exactly which
-            websites you are visiting. Our leak test tool checks for both of these vulnerabilities
-            in real-time. If you are paying for a VPN service but your IP is leaking, you are not
-            getting the privacy you think you are paying for.
+            websites you are visiting. BrowserScan compares WebRTC IP evidence in real time. DNS is
+            only classified when resolver-path evidence exists; otherwise the result stays unknown
+            instead of substituting a public resolver. If an additional public IP is exposed, your
+            VPN may not be providing the isolation you expect.
           </p>
         </div>
 
@@ -222,10 +223,10 @@ export default function ToolsIndexPage() {
             to brute-force credentials, or exploit vulnerabilities in the services running behind them.
           </p>
           <p className="text-sm leading-relaxed text-zinc-400">
-            Our port scanner lets you check which ports are open on your system. This is the first
-            thing an attacker does when targeting a system, so you should know what they can see.
-            If you have ports open that should not be exposed to the internet, that is a security
-            problem you need to fix. Remember, you cannot defend what you do not know about.
+            BrowserScan&apos;s exposure assessment does not open TCP connections. It identifies the public
+            network, hosting, proxy, VPN, Tor, and reputation signals associated with an IP address.
+            To verify open ports on systems you own, use an approved network scanner from a location
+            that can actually reach the target.
           </p>
         </div>
 

@@ -7,8 +7,10 @@ interface Props {
 
 export function NetworkProtocols({ report }: Props) {
   const { protocols } = report.network;
+  const tlsProfile = protocols.tls_profile ?? protocols.tls_ja3 ?? 'Unavailable';
   const entries = [
-    { label: 'TLS JA3', value: protocols.tls_ja3 },
+    { label: 'Edge TLS Profile', value: tlsProfile },
+    { label: 'TLS Cipher', value: protocols.tls_cipher ?? 'Unavailable' },
     { label: 'TLS Version', value: protocols.tls_version },
     { label: 'HTTP Version', value: protocols.http_version },
     { label: 'TCP OS Guess', value: protocols.tcp_os_guess }
@@ -25,6 +27,9 @@ export function NetworkProtocols({ report }: Props) {
           </div>
         ))}
       </div>
+      <p className="mt-4 text-xs leading-relaxed text-zinc-500">
+        Built from Cloudflare edge metadata. This is not a JA3 or JA4 ClientHello fingerprint.
+      </p>
     </Card>
   );
 }

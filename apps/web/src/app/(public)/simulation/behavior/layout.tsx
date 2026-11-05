@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
+  alternates: { canonical: '/simulation/behavior' },
   title: 'Behavioral Telemetry Analysis - Bot vs Human Detection Tool',
   description: 'Test bot detection systems with behavioral biometrics. Analyze mouse movements, typing patterns, and click behavior. In 2024, automated bots make up 51% of internet traffic - see how detection works.',
   keywords: ['bot detection', 'behavioral biometrics', 'mouse tracking', 'bot vs human', 'captcha alternative', 'fraud detection', 'entropy analysis', 'behavioral analysis', 'anti-bot'],

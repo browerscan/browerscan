@@ -4,7 +4,7 @@ const footerLinks = {
   tools: [
     { href: '/tools/ip-lookup', label: 'IP Lookup' },
     { href: '/tools/leak-test', label: 'Leak Test' },
-    { href: '/tools/port-scan', label: 'Port Scanner' },
+    { href: '/tools/port-scan', label: 'Exposure Assessment' },
     { href: '/tools/cookie-check', label: 'Cookie Analyzer' },
     { href: '/tools/pdf-gen', label: 'PDF Export' }
   ],

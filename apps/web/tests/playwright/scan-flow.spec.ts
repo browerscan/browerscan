@@ -1,4 +1,21 @@
 import { test, expect } from '@playwright/test';
+import { sampleReport } from '../../src/lib/sample-report';
+
+test.beforeEach(async ({ page }) => {
+  await page.route('**/api/scan/latest', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        status: 'ok',
+        data: {
+          ...sampleReport,
+          meta: { ...sampleReport.meta, scan_id: 'live-scan-flow-test' }
+        }
+      })
+    });
+  });
+});
 
 /**
  * E2E tests for the complete browser fingerprinting scan flow
@@ -106,7 +123,7 @@ test.describe('Complete Scan Flow', () => {
     await newPage.goto('/report/network');
 
     // Should show empty state or loading indicator
-    const emptyStateText = ['No scan data', 'run a scan', 'Please scan'];
+    const emptyStateText = ['No scan data', 'Live report unavailable', 'run a scan', 'Please scan'];
     let foundEmptyState = false;
 
     for (const text of emptyStateText) {
@@ -116,8 +133,7 @@ test.describe('Complete Scan Flow', () => {
       }
     }
 
-    // Either empty state is shown or data loads from default
-    expect(foundEmptyState || await newPage.getByText('Network Layer').isVisible()).toBeTruthy();
+    expect(foundEmptyState).toBeTruthy();
 
     await context.close();
   });

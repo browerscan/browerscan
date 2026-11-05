@@ -1,5 +1,12 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const systemChrome = process.env.PLAYWRIGHT_USE_SYSTEM_CHROME === '1'
+  ? {
+      channel: 'chrome' as const,
+      defaultBrowserType: 'chromium' as const
+    }
+  : {};
+
 export default defineConfig({
   testDir: './tests/playwright',
   fullyParallel: true,
@@ -21,7 +28,7 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] }
+      use: { ...devices['Desktop Chrome'], ...systemChrome }
     },
     {
       name: 'firefox',
@@ -29,7 +36,7 @@ export default defineConfig({
     },
     {
       name: 'mobile',
-      use: { ...devices['iPhone 13'] }
+      use: { ...devices['iPhone 13'], ...systemChrome }
     }
   ],
   webServer: {

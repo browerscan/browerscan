@@ -2,10 +2,11 @@
 
 import Link from 'next/link';
 import { ConsistencyMatrix } from '@/components/sections/consistency-matrix';
+import { DemoReportNotice } from '@/components/sections/demo-report-notice';
 import { useLiveReport } from '@/lib/use-live-report';
 
 export default function ConsistencyReportPage() {
-  const { data: report, isLoading } = useLiveReport();
+  const { data: report, isError, isLoading } = useLiveReport();
 
   if (isLoading) {
     return (
@@ -21,8 +22,14 @@ export default function ConsistencyReportPage() {
   if (!report) {
     return (
       <div className="mx-auto max-w-6xl space-y-6 px-4 py-10">
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-10 text-center">
-          <p className="text-zinc-400">No scan data available. Please run a scan first.</p>
+        <div
+          className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-10 text-center"
+          role={isError ? 'alert' : 'status'}
+          aria-label={isError ? 'Live report unavailable' : 'No scan data'}
+        >
+          <p className="text-zinc-400">
+            {isError ? 'Live report unavailable. No sample data was substituted.' : 'No scan data available. Please run a scan first.'}
+          </p>
           <Link href="/" className="mt-4 inline-block text-sm text-sky-400 hover:text-sky-300">
             Go to Dashboard
           </Link>
@@ -42,6 +49,7 @@ export default function ConsistencyReportPage() {
           Cross-compare system configuration hints with IP-derived intelligence to detect spoofing attempts.
         </p>
       </div>
+      <DemoReportNotice scanId={report.meta.scan_id} />
 
       {/* Navigation Pills */}
       <div className="flex flex-wrap gap-2">

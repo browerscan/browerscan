@@ -3,10 +3,11 @@
 import Link from 'next/link';
 import { HardwarePanel } from '@/components/sections/hardware-panel';
 import { LeakPanels } from '@/components/sections/leak-panels';
+import { DemoReportNotice } from '@/components/sections/demo-report-notice';
 import { useLiveReport } from '@/lib/use-live-report';
 
 export default function HardwareReportPage() {
-  const { data: report, isLoading } = useLiveReport();
+  const { data: report, isError, isLoading } = useLiveReport();
 
   if (isLoading) {
     return (
@@ -22,8 +23,14 @@ export default function HardwareReportPage() {
   if (!report) {
     return (
       <div className="mx-auto max-w-6xl space-y-6 px-4 py-10">
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-10 text-center">
-          <p className="text-zinc-400">No scan data available. Please run a scan first.</p>
+        <div
+          className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-10 text-center"
+          role={isError ? 'alert' : 'status'}
+          aria-label={isError ? 'Live report unavailable' : 'No scan data'}
+        >
+          <p className="text-zinc-400">
+            {isError ? 'Live report unavailable. No sample data was substituted.' : 'No scan data available. Please run a scan first.'}
+          </p>
           <Link href="/" className="mt-4 inline-block text-sm text-sky-400 hover:text-sky-300">
             Go to Dashboard
           </Link>
@@ -43,6 +50,7 @@ export default function HardwareReportPage() {
           Unmasked GPU vendors, canvas signatures, audio fingerprints, and environment concurrency metrics.
         </p>
       </div>
+      <DemoReportNotice scanId={report.meta.scan_id} />
 
       {/* Navigation Pills */}
       <div className="flex flex-wrap gap-2">

@@ -12,7 +12,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: [
           '/api/',
           '/_next/',
-          '/report/*', // Dynamic scan report pages
         ],
       },
       {

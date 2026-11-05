@@ -4,10 +4,11 @@ import Link from 'next/link';
 import { NetworkProtocols } from '@/components/sections/network-protocols';
 import { RiskBoard } from '@/components/sections/risk-board';
 import { LeakPanels } from '@/components/sections/leak-panels';
+import { DemoReportNotice } from '@/components/sections/demo-report-notice';
 import { useLiveReport } from '@/lib/use-live-report';
 
 export default function NetworkReportPage() {
-  const { data: report, isLoading } = useLiveReport();
+  const { data: report, isError, isLoading } = useLiveReport();
 
   if (isLoading) {
     return (
@@ -23,8 +24,14 @@ export default function NetworkReportPage() {
   if (!report) {
     return (
       <div className="mx-auto max-w-6xl space-y-6 px-4 py-10">
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-10 text-center">
-          <p className="text-zinc-400">No scan data available. Please run a scan first.</p>
+        <div
+          className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-10 text-center"
+          role={isError ? 'alert' : 'status'}
+          aria-label={isError ? 'Live report unavailable' : 'No scan data'}
+        >
+          <p className="text-zinc-400">
+            {isError ? 'Live report unavailable. No sample data was substituted.' : 'No scan data available. Please run a scan first.'}
+          </p>
           <Link href="/" className="mt-4 inline-block text-sm text-sky-400 hover:text-sky-300">
             Go to Dashboard
           </Link>
@@ -41,9 +48,10 @@ export default function NetworkReportPage() {
         <p className="mt-4 text-xs uppercase tracking-[0.4em] text-zinc-500">Network Layer</p>
         <h1 className="text-3xl font-semibold text-zinc-50">Packet & TLS Intelligence</h1>
         <p className="mt-2 text-sm text-zinc-400">
-          ASN analysis, JA3/JA4 fingerprints, protocol stacks, and leak telemetry captured at the network edge.
+          ASN analysis, edge-observed TLS metadata, protocol stacks, and leak telemetry.
         </p>
       </div>
+      <DemoReportNotice scanId={report.meta.scan_id} />
 
       {/* Navigation Pills */}
       <div className="flex flex-wrap gap-2">
@@ -73,9 +81,9 @@ export default function NetworkReportPage() {
             </p>
           </div>
           <div>
-            <p className="text-xs font-medium text-sky-400">TLS Fingerprinting</p>
+            <p className="text-xs font-medium text-sky-400">Edge TLS Metadata</p>
             <p className="mt-1 text-xs text-zinc-500">
-              JA3/JA4 hashes capture unique TLS handshake patterns that identify browser and automation tools.
+              Cloudflare exposes the negotiated TLS version and cipher. Raw ClientHello fields required for JA3/JA4 are not available here.
             </p>
           </div>
           <div>
@@ -146,7 +154,7 @@ export default function NetworkReportPage() {
 
         <div className="space-y-4">
           <h2 className="text-xl font-semibold text-zinc-100">
-            TLS Fingerprinting: JA3 and JA4 Explained
+            Edge TLS Metadata vs JA3 and JA4
           </h2>
           <p className="text-sm leading-relaxed text-zinc-400">
             This is where things get interesting. When your browser connects to a website over HTTPS, it
@@ -154,11 +162,9 @@ export default function NetworkReportPage() {
             supports, in what order, and with what extensions. This announcement is called the ClientHello.
           </p>
           <p className="text-sm leading-relaxed text-zinc-400">
-            JA3 (created by Salesforce in 2017) creates a fingerprint hash from your ClientHello. Different
-            browsers, operating systems, and tools produce different JA3 hashes. Chrome has one, Firefox has
-            another, cURL has another. Even different versions of the same browser produce different hashes.
-            This is powerful for detection - if someone claims to be Chrome but has a JA3 hash of a Python
-            script, they are lying.
+            JA3 and JA4 require details from the raw ClientHello. BrowserScan&apos;s Worker does not receive that
+            structure, so this report shows only the negotiated TLS version, cipher, and HTTP protocol exposed
+            by Cloudflare. It does not synthesize a JA3/JA4 hash from incomplete inputs.
           </p>
           <div className="rounded-lg border border-zinc-800 bg-zinc-900/30 p-4">
             <h3 className="mb-3 text-sm font-medium text-zinc-200">JA3 vs JA4 Comparison</h3>
@@ -184,8 +190,8 @@ export default function NetworkReportPage() {
             </div>
           </div>
           <p className="text-xs text-zinc-500">
-            Cloudflare, VirusTotal, and major CDNs now use JA4 for bot detection. Attackers who spoof their
-            User-Agent string can still be caught by their TLS fingerprint mismatch.
+            Full JA3/JA4 can be useful at a TLS termination point that exposes ClientHello data. The values
+            above are educational context, not capabilities claimed by this report.
           </p>
         </div>
 
@@ -254,8 +260,8 @@ export default function NetworkReportPage() {
             <div className="rounded-lg border border-zinc-800/60 bg-zinc-900/20 p-4">
               <h3 className="mb-2 text-sm font-medium text-zinc-200">Protocol Fingerprints</h3>
               <p className="text-xs text-zinc-500">
-                The JA3 and JA4 hashes shown identify your browser&apos;s TLS implementation. If these match
-                known browser hashes, you blend in. If they match automation tools, you stand out.
+                The edge TLS profile shows the negotiated TLS version, cipher, and HTTP protocol. It is useful
+                connection metadata but is not a full ClientHello fingerprint.
               </p>
             </div>
             <div className="rounded-lg border border-zinc-800/60 bg-zinc-900/20 p-4">
