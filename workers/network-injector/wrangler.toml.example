@@ -21,6 +21,8 @@ workers_dev = true
 # See: https://community.cloudflare.com/t/is-it-safe-to-publish-wrangler-toml-with-account-id-zone-id/116785
 # However, we keep it as placeholder for maximum security in public repos
 account_id = "YOUR_CLOUDFLARE_ACCOUNT_ID"
+# Keep dashboard-set vars on deploy (matches the production config)
+keep_vars = true
 
 [vars]
 ENVIRONMENT = "production"
@@ -41,14 +43,16 @@ binding = "REPORTS_BUCKET"
 bucket_name = "browserscan-reports"
 
 # Production KV Namespaces
-kv_namespaces = [
-  # Rate limiting KV namespace
-  # Get from: wrangler kv:namespace list
-  { binding = "RATE_LIMIT_KV", id = "YOUR_RATE_LIMIT_KV_ID" },
+# Get from: wrangler kv:namespace list
+# Rate limiting KV namespace
+[[kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "YOUR_RATE_LIMIT_KV_ID"
 
-  # IP info cache KV namespace
-  { binding = "IPINFO_CACHE_KV", id = "YOUR_IPINFO_CACHE_KV_ID" }
-]
+# IP info cache KV namespace
+[[kv_namespaces]]
+binding = "IPINFO_CACHE_KV"
+id = "YOUR_IPINFO_CACHE_KV_ID"
 
 # ==========================================
 # Setup Instructions
