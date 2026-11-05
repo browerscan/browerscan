@@ -1,6 +1,6 @@
 # BrowserScan.org
 
-> Browser fingerprinting and trust score analysis platform built on Cloudflare's full stack (Pages + Workers + D1 + R2)
+> Browser fingerprinting and trust score analysis platform built on Cloudflare's full stack (Workers + D1 + R2 + KV)
 
 ## 🚀 Quick Start
 
@@ -16,7 +16,7 @@
 ## 📁 Project Structure
 
 ```
-apps/web/              # Next.js 16 frontend (Cloudflare Pages)
+apps/web/              # Next.js 16 frontend (Cloudflare Workers via OpenNext)
 workers/network-injector/  # Cloudflare Worker API
 packages/types/        # Shared TypeScript types
 docs/                  # Documentation
@@ -42,7 +42,8 @@ See [Quick Start Guide](./docs/QUICK_START.md#-获取可选-api-密钥) for setu
 ```bash
 npm run dev          # Start frontend + worker (concurrent)
 npm run build        # Build all projects
-npm run test         # Run unit tests (71 tests)
+npm run test         # Run web unit tests (Vitest)
+npm run test:worker  # Run worker unit tests (Vitest)
 npm run test:e2e     # Run E2E tests
 npm run typecheck    # TypeScript validation
 ```
@@ -62,7 +63,7 @@ npm run typecheck    # TypeScript validation
 ## ✨ Features
 
 - 🔍 **Browser Fingerprinting**: Canvas, WebGL, audio context, fonts detection
-- 🌐 **Network Analysis**: IP intelligence, TLS fingerprinting (JA3/JA4), ASN lookup
+- 🌐 **Network Analysis**: IPBot-first IP intelligence with IPInfo fallback, edge-observed TLS metadata, ASN lookup
 - 🔒 **Leak Detection**: WebRTC, DNS, IPv6 leak testing
 - 📊 **Trust Scoring**: Deduction-based scoring system (0-100)
 - 🤖 **Bot Detection**: Behavioral analysis, automation detection
@@ -70,8 +71,8 @@ npm run typecheck    # TypeScript validation
 
 ## 🧪 Testing
 
-- ✅ **71 unit tests** (all passing)
-- ✅ **15+ E2E scenarios** (Playwright)
+- ✅ **Vitest unit suites** (web + worker, worker suite gated in CI)
+- ✅ **Playwright E2E scenarios**
 - ✅ **WCAG AA compliant** (accessibility)
 
 ## 🚀 Deployment
@@ -115,7 +116,7 @@ See [PROJECT_COMPLETION_SUMMARY.md](./docs/PROJECT_COMPLETION_SUMMARY.md) for de
 - **Backend**: Cloudflare Workers (Hono), D1 (SQLite), R2, KV
 - **Language**: TypeScript (strict mode)
 - **Testing**: Vitest, Playwright
-- **Deployment**: Cloudflare Pages + Workers
+- **Deployment**: Cloudflare Workers — web via OpenNext (`@opennextjs/cloudflare`) + Hono Worker API
 
 ## 📝 License
 

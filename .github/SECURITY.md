@@ -81,6 +81,7 @@ As of 2025-12-17, we use a **template-based approach** for Wrangler configuratio
 ### Browser Fingerprinting
 
 This project intentionally collects browser fingerprinting data for security analysis. All data collection is:
+
 - Transparent to users
 - Used only for displaying fingerprint analysis
 - Not shared with third parties
@@ -89,6 +90,7 @@ This project intentionally collects browser fingerprinting data for security ana
 ### IP Intelligence
 
 IP address lookups use third-party services (ipinfo.io). Users should:
+
 - Review our privacy policy
 - Understand that IP addresses are inherently identifiable
 - Use VPNs/proxies if desired for privacy testing

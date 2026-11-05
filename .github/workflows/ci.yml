@@ -24,6 +24,8 @@ jobs:
         run: npm run typecheck
       - name: Unit tests
         run: npm run test
+      - name: Worker tests
+        run: npm run test:worker
       - name: Build web
         run: npm run build:web
       - name: Install Playwright browsers

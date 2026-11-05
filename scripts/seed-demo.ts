@@ -5,6 +5,10 @@ import { join } from 'path';
 import { sampleReport } from '../apps/web/src/lib/sample-report';
 
 const dbName = process.env.D1_DATABASE ?? 'browserscan-db';
+// Default to the LOCAL D1 instance. Seeding demo data into the remote
+// (production) database requires an explicit opt-in to avoid a footgun.
+const isRemote = process.env.D1_REMOTE === '1' || process.argv.includes('--remote');
+const targetFlag = isRemote ? '--remote' : '--local';
 const tmpDir = mkdtempSync(join(tmpdir(), 'browserscan-seed-'));
 const sqlPath = join(tmpDir, 'seed.sql');
 
@@ -41,5 +45,5 @@ const statement = `INSERT OR REPLACE INTO scans (
 
 writeFileSync(sqlPath, statement, 'utf8');
 
-console.log(`👣 Seeding demo scan into D1 database "${dbName}"...`);
-execSync(`npx wrangler d1 execute ${dbName} --file ${sqlPath}`, { stdio: 'inherit' });
+console.log(`👣 Seeding demo scan into ${isRemote ? 'REMOTE' : 'local'} D1 database "${dbName}"...`);
+execSync(`npx wrangler d1 execute ${dbName} ${targetFlag} --file ${sqlPath}`, { stdio: 'inherit' });

@@ -111,7 +111,8 @@ Additional tables:
 
 ### External Dependencies
 
-- **ipinfo.io**: IP intelligence (requires `IPINFO_TOKEN` secret in worker)
+- **IPBot** (`services/ipbot.ts`): Primary IP intelligence — `GET {IPBOT_API_ORIGIN}/v1/ip/{ip}` with `X-API-Key`; KV-cached 24h (1h for high-risk IPs); requires `IPBOT_API_ORIGIN` var + `IPBOT_API_KEY` secret
+- **ipinfo.io**: Fallback IP intelligence (requires `IPINFO_TOKEN` secret in worker)
 - **Cloudflare Turnstile**: Bot verification
 - **R2 Storage**: PDF report storage in `browserscan-reports` bucket
 
@@ -155,4 +156,4 @@ Access in Next.js: `getCloudflareContext()` (via `@opennextjs/cloudflare`)
 - **Local D1**: `wrangler dev --local` creates local SQLite instance
 - **Version Requirements**: This project uses Next.js 16.0.7 and React 19.2.1 (upgraded per standards)
 - **Environment Setup**: Copy `.env.example` to `.env.local` for local development (never commit)
-- **Required Secrets**: `IPINFO_TOKEN`, `TURNSTILE_SECRET_KEY`, `PDF_SIGNING_KEY` in worker
+- **Required Secrets**: `IPINFO_TOKEN`, `IPBOT_API_KEY`, `TURNSTILE_SECRET_KEY`, `PDF_SIGNING_KEY` in worker (local dev: `workers/network-injector/.dev.vars`)

@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "project": "browserscan.org",
+  "platform": "cloudflare",
+  "kind": "cloudflare-workers",
+  "account_alias": "jessgaojia",
+  "production_urls": [
+    "https://browserscan.org",
+    "https://api.browserscan.org"
+  ],
+  "workers": {
+    "api": {
+      "name": "browserscan-network-injector",
+      "version_id": "ef6ac11b-9ae8-4735-9955-8dca5b058b2a",
+      "workers_dev_url": "https://browserscan-network-injector.browserscan.workers.dev"
+    },
+    "web": {
+      "name": "web",
+      "version_id": "b97a2390-f787-488a-9f21-44bbcadb5257",
+      "workers_dev_url": "https://web.browserscan.workers.dev"
+    }
+  },
+  "bindings": {
+    "d1": [
+      "DB"
+    ],
+    "kv": [
+      "RATE_LIMIT_KV",
+      "IPINFO_CACHE_KV"
+    ],
+    "r2": [
+      "REPORTS_BUCKET",
+      "NEXT_INC_CACHE_R2_BUCKET"
+    ],
+    "secrets": [
+      "IPBOT_API_KEY",
+      "IPINFO_TOKEN",
+      "OPENROUTER_API_KEY",
+      "PDF_SIGNING_KEY",
+      "TURNSTILE_SECRET_KEY"
+    ]
+  },
+  "openclaw_project": "oc-browserscan.org-1def7956",
+  "git_head": "de564b51e150",
+  "source_state": "dirty",
+  "last_known_good": "2026-07-18T09:46:35Z",
+  "updated_at": "2026-07-18T09:48:20Z",
+  "known_warnings": [
+    "Expected /api/scan/latest 404 for a browser with no stored scan",
+    "Chromium ScriptProcessorNode deprecation warning",
+    "Deployment was built from an uncommitted working tree"
+  ],
+  "state_files": {
+    "human": "PROJECT_STATE.md",
+    "machine": "ops/current-state.json",
+    "ledger": "ops/deploy-ledger.jsonl"
+  }
+}
