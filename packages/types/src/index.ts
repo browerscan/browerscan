@@ -41,7 +41,12 @@ export type NetworkRisk = {
 };
 
 export type ProtocolFingerprints = {
-  tls_ja3: string;
+  /** Edge-observed TLS metadata. This is not a JA3/JA4 ClientHello fingerprint. */
+  tls_profile?: string;
+  tls_cipher?: string;
+  tls_profile_method?: 'cloudflare-edge-metadata';
+  /** @deprecated Legacy reports may still contain the old pseudo-JA3 field. */
+  tls_ja3?: string;
   tls_version: string;
   http_version: string;
   tcp_os_guess: string;
@@ -75,9 +80,31 @@ export type SoftwareFingerprint = {
   languages: string[];
 };
 
+/**
+ * Extended, permissionless signals collected client-side. All fields are
+ * optional and additive — older stored reports may omit them (see
+ * docs/ENDGAME.md, report-shape contract).
+ */
+export type ExtendedFingerprint = {
+  /** Hash of a battery of Math.* results; differs across JS engines/platforms. */
+  math_hash?: string;
+  platform?: string;
+  vendor?: string;
+  touch_points?: number;
+  color_depth?: number;
+  pixel_ratio?: number;
+  timezone_offset?: number;
+  media_devices?: {
+    audioinput: number;
+    audiooutput: number;
+    videoinput: number;
+  };
+};
+
 export type FingerprintSection = {
   hardware: HardwareFingerprint;
   software: SoftwareFingerprint;
+  extended?: ExtendedFingerprint;
 };
 
 export type ConsistencyCheck = {

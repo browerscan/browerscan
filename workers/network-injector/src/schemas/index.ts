@@ -21,11 +21,25 @@ export const ClientFingerprintSchema = z.object({
   timezone: z.string().optional().default('unknown'),
   languages: z.array(z.string()).optional().default([]),
   webrtc_ips: z.array(z.string().ip()).optional().default([]),
-  dns_servers: z.array(z.string()).optional().default([]),
+  dns_servers: z.array(z.string().ip()).max(10).optional().default([]),
   audio_hash: z.string().optional(),
   plugins: z.array(z.string()).optional(),
   is_webdriver: z.boolean().optional().default(false),
   is_headless: z.boolean().optional().default(false),
+  extended: z.object({
+    math_hash: z.string().max(64).optional(),
+    platform: z.string().max(100).optional(),
+    vendor: z.string().max(100).optional(),
+    touch_points: z.number().int().min(0).max(32).optional(),
+    color_depth: z.number().int().min(0).max(64).optional(),
+    pixel_ratio: z.number().min(0).max(10).optional(),
+    timezone_offset: z.number().int().min(-900).max(900).optional(),
+    media_devices: z.object({
+      audioinput: z.number().int().min(0).max(100),
+      audiooutput: z.number().int().min(0).max(100),
+      videoinput: z.number().int().min(0).max(100)
+    }).optional()
+  }).optional(),
 });
 
 export type ClientFingerprintInput = z.infer<typeof ClientFingerprintSchema>;
@@ -48,8 +62,9 @@ export const PortScanSchema = z.object({
 export type PortScanInput = z.infer<typeof PortScanSchema>;
 
 export const LeakTestSchema = z.object({
-  webrtc_ips: z.array(z.string()).optional().default([]),
-  dns_servers: z.array(z.string()).optional().default([]),
+  ip: z.string().ip().optional(),
+  webrtc_ips: z.array(z.string().ip()).max(20).optional().default([]),
+  dns_servers: z.array(z.string().ip()).max(10).optional().default([]),
   ipv6_address: z.string().nullable().optional(),
 });
 

@@ -1,6 +1,6 @@
 /**
  * Server-side Fingerprint Service
- * JA3 calculation, consistency checks, and protocol analysis
+ * TLS metadata, consistency checks, and protocol analysis
  */
 
 import type {
@@ -12,17 +12,18 @@ import type {
 } from '@browserscan/types';
 
 /**
- * Calculate pseudo-JA3 fingerprint from available TLS data
- * Note: True JA3 requires raw TLS Client Hello which isn't available in Workers
+ * Build an honest profile from metadata exposed at the Cloudflare edge.
+ * This is deliberately not labeled JA3/JA4 because Workers do not expose the
+ * raw ClientHello fields required to calculate those fingerprints.
  */
-export function calculateJA3Proxy(
+export function buildTlsEdgeProfile(
   tlsVersion: string,
   tlsCipher: string,
   httpProtocol: string
 ): string {
-  // Create a consistent fingerprint from available data
-  const fingerprint = `${tlsVersion}|${tlsCipher}|${httpProtocol}`;
-  return hashString(fingerprint);
+  return [tlsVersion, tlsCipher, httpProtocol]
+    .map((value) => value || 'unknown')
+    .join(' · ');
 }
 
 /**
@@ -112,6 +113,12 @@ export function checkTimezoneConsistency(
     };
   }
 
+  // Some IP intel sources (IPBot) report a UTC offset ("-07:00") instead of an
+  // IANA name — compare offsets in that case
+  if (UTC_OFFSET_RE.test(ipTimezone)) {
+    return checkTimezoneOffsetConsistency(ipTimezone, clientTimezone);
+  }
+
   // Extract region from timezone (e.g., "America/New_York" -> "America")
   const ipRegion = ipTimezone.split('/')[0];
   const clientRegion = clientTimezone.split('/')[0];
@@ -137,6 +144,71 @@ export function checkTimezoneConsistency(
     status: 'FAIL',
     evidence: `Timezone mismatch: IP (${ipTimezone}) != System (${clientTimezone})`
   };
+}
+
+const UTC_OFFSET_RE = /^[+-]\d{2}:\d{2}$/;
+
+/**
+ * Compare an IP-side UTC offset against the client's IANA timezone
+ */
+function checkTimezoneOffsetConsistency(
+  ipOffset: string,
+  clientTimezone: string
+): ConsistencyCheck {
+  const clientOffsetMin = getUtcOffsetMinutes(clientTimezone);
+  if (clientOffsetMin === null) {
+    return {
+      status: 'WARN',
+      evidence: 'Unable to determine timezone consistency'
+    };
+  }
+
+  const ipOffsetMin = parseUtcOffsetMinutes(ipOffset);
+  const diff = Math.abs(ipOffsetMin - clientOffsetMin);
+
+  if (diff === 0) {
+    return {
+      status: 'PASS',
+      evidence: `Timezone offset matches: UTC${ipOffset}`
+    };
+  }
+  if (diff <= 60) {
+    // Allow one hour of slack for DST boundaries
+    return {
+      status: 'WARN',
+      evidence: `Timezone offset close but not equal: IP (UTC${ipOffset}) vs System (${clientTimezone})`
+    };
+  }
+  return {
+    status: 'FAIL',
+    evidence: `Timezone mismatch: IP (UTC${ipOffset}) != System (${clientTimezone})`
+  };
+}
+
+function parseUtcOffsetMinutes(offset: string): number {
+  const sign = offset.startsWith('-') ? -1 : 1;
+  const [hours, minutes] = offset.slice(1).split(':').map(Number);
+  return sign * (hours * 60 + minutes);
+}
+
+/**
+ * Resolve the current UTC offset of an IANA timezone in minutes
+ */
+function getUtcOffsetMinutes(timeZone: string): number | null {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      timeZoneName: 'longOffset'
+    }).formatToParts(new Date());
+    const name = parts.find((p) => p.type === 'timeZoneName')?.value || '';
+    if (name === 'GMT') return 0;
+    const match = name.match(/GMT([+-]\d{2}):(\d{2})/);
+    if (!match) return null;
+    const sign = match[1].startsWith('-') ? -1 : 1;
+    return sign * (Math.abs(Number(match[1])) * 60 + Number(match[2]));
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -315,26 +387,13 @@ export function buildProtocolFingerprints(
   tcpOsGuess?: string
 ): ProtocolFingerprints {
   return {
-    tls_ja3: calculateJA3Proxy(tlsVersion, tlsCipher, httpProtocol),
+    tls_profile: buildTlsEdgeProfile(tlsVersion, tlsCipher, httpProtocol),
+    tls_cipher: tlsCipher || 'unknown',
+    tls_profile_method: 'cloudflare-edge-metadata',
     tls_version: tlsVersion || 'unknown',
     http_version: httpProtocol || 'HTTP/1.1',
     tcp_os_guess: tcpOsGuess || 'Unknown'
   };
-}
-
-/**
- * Simple string hash function (for fingerprint ID generation)
- */
-function hashString(str: string): string {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32-bit integer
-  }
-  // Convert to hex and pad
-  const hex = Math.abs(hash).toString(16).padStart(8, '0');
-  return hex + hex.split('').reverse().join(''); // 16-char pseudo-hash
 }
 
 /**

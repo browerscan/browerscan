@@ -23,7 +23,9 @@ workers_dev = true
 account_id = "YOUR_CLOUDFLARE_ACCOUNT_ID"
 
 [vars]
-ENVIRONMENT = "dev"
+ENVIRONMENT = "production"
+# IPBot IP intelligence API origin (primary IP lookup source; IPInfo is the fallback)
+IPBOT_API_ORIGIN = "https://api.ipbot.com"
 
 # D1 Database Configuration
 [[d1_databases]]
@@ -39,7 +41,6 @@ binding = "REPORTS_BUCKET"
 bucket_name = "browserscan-reports"
 
 # Production KV Namespaces
-[env.production]
 kv_namespaces = [
   # Rate limiting KV namespace
   # Get from: wrangler kv:namespace list
@@ -61,3 +62,9 @@ kv_namespaces = [
 #    OR: wrangler kv:namespace list
 # 5. Replace all placeholders in wrangler.toml with actual values
 # 6. NEVER commit wrangler.toml to version control!
+# 7. Set worker secrets (NEVER put these in wrangler.toml or [vars]):
+#    npx wrangler secret put IPINFO_TOKEN
+#    npx wrangler secret put IPBOT_API_KEY
+#    npx wrangler secret put TURNSTILE_SECRET_KEY
+#    For local dev, put them in workers/network-injector/.dev.vars (gitignored),
+#    see .dev.vars.example

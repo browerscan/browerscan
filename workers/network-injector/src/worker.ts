@@ -1,9 +1,9 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import type { ScanReport, NetworkSection, LeakStatus, HardwareFingerprint, SoftwareFingerprint, ChatContextSummary } from '@browserscan/types';
-import { sampleReport } from './sample-report';
 import { calculateScore, addBotDeduction } from './services/scoring';
-import { lookupIpInfo, extractCloudflareData } from './services/ip-intel';
+import { extractCloudflareData } from './services/ip-intel';
+import { getIpIntel } from './services/ipbot';
 import {
   parseUserAgent,
   buildConsistencySection,
@@ -56,6 +56,8 @@ interface Env {
   RATE_LIMIT_KV?: KVNamespace;
   IPINFO_CACHE_KV?: KVNamespace;
   IPINFO_TOKEN: string;
+  IPBOT_API_ORIGIN?: string;
+  IPBOT_API_KEY?: string;
   TURNSTILE_SITE_KEY: string;
   TURNSTILE_SECRET_KEY: string;
   OPENROUTER_API_KEY: string;
@@ -152,7 +154,7 @@ app.post('/api/scan/collect', scanRateLimit, validateBody(ClientFingerprintSchem
     const parsedUA = parseUserAgent(userAgent);
 
     // Lookup IP intelligence
-    const ipIntel = await lookupIpInfo(cfData.ip, c.env.IPINFO_TOKEN, c.env.IPINFO_CACHE_KV);
+    const ipIntel = await getIpIntel(cfData.ip, c.env, c.env.IPINFO_CACHE_KV);
 
     // Build network section
     const webrtcLeak = detectWebRTCLeak(cfData.ip, body.webrtc_ips);
@@ -167,7 +169,7 @@ app.post('/api/scan/collect', scanRateLimit, validateBody(ClientFingerprintSchem
       },
       protocols: buildProtocolFingerprints(
         cfData.tlsVersion,
-        'TLS_AES_128_GCM_SHA256', // Placeholder - actual cipher from cf
+        cfData.tlsCipher,
         cfData.httpProtocol,
         parsedUA.os
       ),
@@ -237,7 +239,8 @@ app.post('/api/scan/collect', scanRateLimit, validateBody(ClientFingerprintSchem
       network,
       fingerprint: {
         hardware,
-        software
+        software,
+        ...(body.extended ? { extended: body.extended } : {})
       },
       consistency
     };
@@ -274,6 +277,37 @@ app.post('/api/scan/collect', scanRateLimit, validateBody(ClientFingerprintSchem
 });
 
 /**
+ * Get latest scan (for dashboard) — must be registered BEFORE `/:id`,
+ * otherwise Hono matches "latest" as an :id and this route is dead.
+ */
+app.get('/api/scan/latest', async (c) => {
+  try {
+    // Scope "latest" to the requesting client so a visitor can never receive
+    // another visitor's report. See docs/ENDGAME.md (public read path).
+    const clientIp = extractCloudflareData(c.req.raw).ip;
+    if (!clientIp || clientIp === '0.0.0.0') {
+      return c.json({ status: 'error', message: 'Latest scan not found' }, 404);
+    }
+
+    const row = await c.env.DB.prepare(
+      'SELECT report_blob FROM scans WHERE report_blob IS NOT NULL AND ip_address = ?1 ORDER BY created_at DESC LIMIT 1'
+    ).bind(clientIp).first<{ report_blob?: string }>();
+
+    if (row?.report_blob) {
+      const report = JSON.parse(row.report_blob) as ScanReport;
+      // Per-visitor PII: must not be stored in shared/edge caches.
+      c.header('Cache-Control', 'private, no-store');
+      return c.json({ status: 'ok', data: report });
+    }
+
+    return c.json({ status: 'error', message: 'Latest scan not found' }, 404);
+  } catch (error) {
+    console.error('scan/latest error:', error);
+    return c.json({ status: 'error', message: 'Failed to fetch latest scan' }, 500);
+  }
+});
+
+/**
  * Get scan by ID
  */
 app.get('/api/scan/:id', async (c) => {
@@ -289,36 +323,13 @@ app.get('/api/scan/:id', async (c) => {
     }
 
     const report = JSON.parse(row.report_blob) as ScanReport;
-    c.header('Cache-Control', 'public, max-age=5, s-maxage=30, stale-while-revalidate=30');
+    // Report contains per-visitor PII; keep it out of shared/edge caches.
+    c.header('Cache-Control', 'private, max-age=30');
     c.header('ETag', scanId);
     return c.json({ status: 'ok', data: report });
   } catch (error) {
     console.error('scan/:id error:', error);
     return c.json({ status: 'error', message: 'Failed to fetch scan' }, 500);
-  }
-});
-
-/**
- * Get latest scan (for dashboard)
- */
-app.get('/api/scan/latest', async (c) => {
-  try {
-    const row = await c.env.DB.prepare(
-      'SELECT report_blob FROM scans WHERE report_blob IS NOT NULL ORDER BY created_at DESC LIMIT 1'
-    ).first<{ report_blob?: string }>();
-
-    if (row?.report_blob) {
-      const report = JSON.parse(row.report_blob) as ScanReport;
-      c.header('Cache-Control', 'public, max-age=5, s-maxage=15, stale-while-revalidate=30');
-      c.header('ETag', `latest-${report.meta.scan_id}`);
-      return c.json({ status: 'ok', data: report });
-    }
-
-    // Return sample report if no scans exist
-    return c.json({ status: 'ok', data: sampleReport });
-  } catch (error) {
-    console.error('scan/latest error:', error);
-    return c.json({ status: 'ok', data: sampleReport });
   }
 });
 
@@ -374,7 +385,7 @@ app.post('/api/tools/ip-lookup', toolRateLimit, validateBody(IpLookupSchema), as
     const body = getValidatedBody<IpLookupInput>(c);
     const ip = body.ip || c.req.header('cf-connecting-ip') || '8.8.8.8';
 
-    const intel = await lookupIpInfo(ip, c.env.IPINFO_TOKEN, c.env.IPINFO_CACHE_KV);
+    const intel = await getIpIntel(ip, c.env, c.env.IPINFO_CACHE_KV);
 
     return c.json({
       status: 'ok',
@@ -402,28 +413,41 @@ app.post('/api/tools/ip-lookup', toolRateLimit, validateBody(IpLookupSchema), as
 });
 
 /**
- * Port scan tool (checks if common ports are accessible)
+ * Network exposure assessment.
+ *
+ * Cloudflare Workers cannot perform arbitrary TCP probes. This endpoint keeps
+ * the legacy URL but returns only evidence IP intelligence can actually prove.
  */
 app.post('/api/tools/port-scan', toolRateLimit, validateBody(PortScanSchema), async (c) => {
   try {
     const body = getValidatedBody<PortScanInput>(c);
     const ip = body.ip || c.req.header('cf-connecting-ip') || '';
     const ports = body.ports || [22, 80, 443, 3389, 8080];
-
-    // Note: Workers can't do TCP connects, so we return a placeholder
-    // Real implementation would use a backend service or external API
+    const intel = await getIpIntel(ip, c.env, c.env.IPINFO_CACHE_KV);
     const results = ports.map(port => ({
       port,
-      status: 'unknown' as const,
+      status: 'not_tested' as const,
       service: getServiceName(port)
     }));
 
     return c.json({
       status: 'ok',
       data: {
-        target_ip: ip,
+        target_ip: intel.ip,
+        capability: 'network_exposure_assessment',
+        tcp_scan_performed: false,
         ports: results,
-        note: 'Port scanning requires direct TCP connections not available in edge workers'
+        assessment: {
+          asn: intel.asn,
+          organization: intel.org,
+          country: intel.country,
+          is_hosting: intel.isHosting,
+          is_proxy: intel.isProxy,
+          is_vpn: intel.isVpn,
+          is_tor: intel.isTor,
+          risk_score: intel.fraudScore
+        },
+        note: 'No TCP connection was attempted. Results describe public network identity and reputation only.'
       }
     });
   } catch (error) {
@@ -641,15 +665,15 @@ app.get('/api/simulation/behavior/history', async (c) => {
 app.post('/api/tools/leak-test', toolRateLimit, validateBody(LeakTestSchema), async (c) => {
   try {
     const body = getValidatedBody<LeakTestInput>(c);
-    const publicIp = c.req.header('cf-connecting-ip') || '127.0.0.1';
+    const publicIp = body.ip || c.req.header('cf-connecting-ip') || '127.0.0.1';
+    const ipIntel = await getIpIntel(publicIp, c.env, c.env.IPINFO_CACHE_KV);
 
     const result: LeakTestResult = await performLeakTest(
       publicIp,
       body.webrtc_ips || [],
       body.dns_servers || [],
       body.ipv6_address ?? null,
-      c.env.IPINFO_TOKEN,
-      c.env.IPINFO_CACHE_KV
+      ipIntel
     );
 
     return c.json({ status: 'ok', data: result });
@@ -724,16 +748,9 @@ function detectDNSLeak(
     return { status: 'UNKNOWN', servers: [] };
   }
 
-  // Check for common secure DNS servers
-  const secureDns = ['1.1.1.1', '1.0.0.1', '8.8.8.8', '8.8.4.4', '9.9.9.9'];
-  const hasSecure = dnsServers.some(s => secureDns.includes(s));
-
-  if (hasSecure) {
-    return { status: 'SAFE', servers: dnsServers };
-  }
-
-  // If using ISP DNS, it might leak location
-  return { status: 'WARN', servers: dnsServers };
+  // A resolver address alone cannot prove transport encryption or a leak.
+  // Real leak detection requires a unique query observed at authoritative DNS.
+  return { status: 'UNKNOWN', servers: Array.from(new Set(dnsServers)) };
 }
 
 function isPrivateIp(ip: string): boolean {

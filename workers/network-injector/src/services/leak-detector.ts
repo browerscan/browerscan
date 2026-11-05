@@ -3,7 +3,7 @@
  * Server-side analysis of WebRTC, DNS, and IPv6 leak data
  */
 
-import { lookupIpInfo, type IpIntelResult } from './ip-intel';
+import type { IpIntelResult } from './ip-intel';
 
 // ============================================
 // Types
@@ -24,7 +24,12 @@ export interface DNSLeakResult {
   status: LeakStatus;
   detected_servers: string[];
   server_locations: string[];
+  resolver_type: 'public' | 'private_or_isp' | 'mixed' | 'unknown';
+  transport: 'unknown';
+  is_public_resolver: boolean;
+  /** @deprecated Resolver identity cannot prove encrypted DNS transport. */
   is_secure_dns: boolean;
+  /** @deprecated Requires IP-intel enrichment; false means unverified. */
   is_isp_dns: boolean;
   risk_level: 'none' | 'low' | 'medium' | 'high';
   explanation: string;
@@ -83,7 +88,7 @@ function isLinkLocalIPv6(ip: string): boolean {
 // Secure DNS Server Detection
 // ============================================
 
-const SECURE_DNS_SERVERS = new Set([
+const KNOWN_PUBLIC_DNS_RESOLVERS = new Set([
   // Cloudflare
   '1.1.1.1', '1.0.0.1',
   '2606:4700:4700::1111', '2606:4700:4700::1001',
@@ -101,8 +106,8 @@ const SECURE_DNS_SERVERS = new Set([
   '94.140.14.14', '94.140.15.15',
 ]);
 
-function isSecureDnsServer(server: string): boolean {
-  return SECURE_DNS_SERVERS.has(server);
+function isKnownPublicResolver(server: string): boolean {
+  return KNOWN_PUBLIC_DNS_RESOLVERS.has(server);
 }
 
 // ============================================
@@ -189,59 +194,48 @@ export function analyzeWebRTCLeak(
 // ============================================
 
 export function analyzeDNSLeak(
-  dnsServers: string[],
-  expectedCountry?: string
+  dnsServers: string[]
 ): DNSLeakResult {
   if (!dnsServers || dnsServers.length === 0) {
     return {
       status: 'UNKNOWN',
       detected_servers: [],
       server_locations: [],
+      resolver_type: 'unknown',
+      transport: 'unknown',
+      is_public_resolver: false,
       is_secure_dns: false,
-      is_isp_dns: true,
-      risk_level: 'none',
-      explanation: 'DNS server detection not available'
-    };
-  }
-
-  // Check if using secure DNS
-  const secureCount = dnsServers.filter(isSecureDnsServer).length;
-  const isSecureDns = secureCount > 0;
-  const isIspDns = secureCount === 0;
-
-  if (isSecureDns && secureCount === dnsServers.length) {
-    return {
-      status: 'SAFE',
-      detected_servers: dnsServers,
-      server_locations: ['Encrypted DNS'],
-      is_secure_dns: true,
       is_isp_dns: false,
       risk_level: 'none',
-      explanation: 'Using encrypted DNS service - your DNS queries are protected'
+      explanation: 'DNS resolver path was not observed; no safety claim was made'
     };
   }
 
-  if (isIspDns) {
-    return {
-      status: 'WARN',
-      detected_servers: dnsServers,
-      server_locations: ['ISP DNS'],
-      is_secure_dns: false,
-      is_isp_dns: true,
-      risk_level: 'medium',
-      explanation: 'Using ISP DNS servers - your DNS queries may reveal your location and browsing activity'
-    };
-  }
+  const uniqueServers = Array.from(new Set(dnsServers));
+  const publicCount = uniqueServers.filter(isKnownPublicResolver).length;
+  const resolverType = publicCount === uniqueServers.length
+    ? 'public'
+    : publicCount === 0
+      ? 'private_or_isp'
+      : 'mixed';
 
-  // Mixed secure and ISP DNS
   return {
-    status: 'WARN',
-    detected_servers: dnsServers,
-    server_locations: ['Mixed DNS'],
-    is_secure_dns: true,
-    is_isp_dns: true,
-    risk_level: 'low',
-    explanation: 'Using a mix of secure and ISP DNS servers - some queries may leak'
+    status: 'UNKNOWN',
+    detected_servers: uniqueServers,
+    server_locations: [
+      resolverType === 'public'
+        ? 'Known public resolver address'
+        : resolverType === 'mixed'
+          ? 'Mixed resolver addresses'
+          : 'Resolver operator not verified'
+    ],
+    resolver_type: resolverType,
+    transport: 'unknown',
+    is_public_resolver: publicCount > 0,
+    is_secure_dns: false,
+    is_isp_dns: false,
+    risk_level: 'none',
+    explanation: 'Resolver addresses do not reveal whether DNS used UDP, DoH, or DoT; no leak verdict was issued'
   };
 }
 
@@ -256,12 +250,12 @@ export function analyzeIPv6Leak(
 ): IPv6LeakResult {
   if (!ipv6Address) {
     return {
-      status: 'SAFE',
+      status: 'UNKNOWN',
       ipv4_address: ipv4Address,
       ipv6_address: null,
       ipv6_leaked: false,
       risk_level: 'none',
-      explanation: 'No IPv6 address detected - no IPv6 leak possible'
+      explanation: 'No IPv6 connection was observed; this does not prove VPN leak protection'
     };
   }
 
@@ -289,12 +283,12 @@ export function analyzeIPv6Leak(
   }
 
   return {
-    status: 'SAFE',
+    status: 'UNKNOWN',
     ipv4_address: ipv4Address,
     ipv6_address: ipv6Address,
     ipv6_leaked: false,
     risk_level: 'none',
-    explanation: 'IPv6 address detected but no VPN bypass detected'
+    explanation: 'IPv6 is reachable, but no VPN context was available to determine whether it bypassed a tunnel'
   };
 }
 
@@ -307,24 +301,13 @@ export async function performLeakTest(
   webrtcIps: string[],
   dnsServers: string[],
   ipv6Address: string | null,
-  ipInfoToken?: string,
-  cache?: KVNamespace
+  ipIntel?: IpIntelResult
 ): Promise<LeakTestResult> {
-  // Get IP intelligence to determine VPN status
-  let ipIntel: IpIntelResult | null = null;
-  if (ipInfoToken) {
-    try {
-      ipIntel = await lookupIpInfo(publicIp, ipInfoToken, cache);
-    } catch (e) {
-      // Continue without IP intel
-    }
-  }
-
   const isVpnActive = ipIntel?.isVpn || ipIntel?.isProxy || false;
 
   // Run all leak analyses
   const webrtc = analyzeWebRTCLeak(publicIp, webrtcIps);
-  const dns = analyzeDNSLeak(dnsServers, ipIntel?.countryCode);
+  const dns = analyzeDNSLeak(dnsServers);
   const ipv6 = analyzeIPv6Leak(publicIp, ipv6Address, isVpnActive);
 
   // Determine overall status
@@ -357,9 +340,8 @@ export async function performLeakTest(
     recommendations.push('Consider using Firefox with media.peerconnection.enabled set to false');
   }
 
-  if (dns.is_isp_dns) {
-    recommendations.push('Switch to a secure DNS provider like Cloudflare (1.1.1.1) or Google (8.8.8.8)');
-    recommendations.push('Enable DNS-over-HTTPS (DoH) in your browser settings');
+  if (dns.status === 'UNKNOWN') {
+    recommendations.push('Verify DNS transport with your resolver or VPN provider; resolver identity alone cannot prove encryption');
   }
 
   if (ipv6.ipv6_leaked) {

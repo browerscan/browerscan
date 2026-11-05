@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeAll } from 'vitest';
+import { describe, expect, it, beforeAll, afterAll, vi } from 'vitest';
 import app from '../src/worker';
 
 // Type helper for app environment
@@ -37,6 +37,34 @@ const createEnv = (overrides?: Partial<Env>): Env => {
   } satisfies Env;
 };
 
+// The IP-intel path falls back to IPInfo, which issues a live fetch to
+// ipinfo.io. Stub fetch for the whole suite so tests are deterministic and
+// never hang on the network (previously these timed out at 5000ms in CI).
+const realFetch = globalThis.fetch;
+beforeAll(() => {
+  globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const url = typeof input === 'string' ? input : input.toString();
+    if (url.includes('ipinfo.io')) {
+      return new Response(
+        JSON.stringify({
+          ip: '1.1.1.1',
+          city: 'Sydney',
+          region: 'New South Wales',
+          country: 'AU',
+          loc: '-33.8688,151.2093',
+          org: 'AS13335 Cloudflare, Inc.',
+          timezone: 'Australia/Sydney'
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    throw new Error(`Unexpected network fetch in test: ${url}`);
+  }) as unknown as typeof fetch;
+});
+afterAll(() => {
+  globalThis.fetch = realFetch;
+});
+
 describe('Worker: Health & Status', () => {
   it('returns health check with environment info', async () => {
     const env = createEnv();
@@ -58,6 +86,96 @@ describe('Worker: Health & Status', () => {
     const payload = await response.json() as { data: { timestamp: number } };
     expect(payload.data.timestamp).toBeGreaterThanOrEqual(before);
     expect(payload.data.timestamp).toBeLessThanOrEqual(after);
+  });
+});
+
+describe('Worker: Latest Scan (per-visitor scoping)', () => {
+  const reportBlob = JSON.stringify({ meta: { scan_id: 'scan-123' }, score: { total: 50, grade: 'C' } });
+
+  it('404s when the client IP is unknown (no cf-connecting-ip)', async () => {
+    const env = createEnv();
+    const response = await app.request('/api/scan/latest', {}, env);
+    expect(response.status).toBe(404);
+  });
+
+  it('returns only the requesting IP\'s latest scan and marks it private', async () => {
+    let boundIp: unknown;
+    const statement = {
+      first: async () => ({ report_blob: reportBlob }),
+      all: async () => ({ results: [] }),
+      bind: (...args: unknown[]) => { boundIp = args[0]; return statement; },
+      run: async () => ({ success: true })
+    };
+    const env = createEnv({
+      DB: { prepare: () => statement } as unknown as D1Database
+    } as Partial<Env>);
+
+    const response = await app.request('/api/scan/latest', {
+      headers: { 'cf-connecting-ip': '203.0.113.9' }
+    }, env);
+
+    expect(response.status).toBe(200);
+    expect(boundIp).toBe('203.0.113.9');
+    expect(response.headers.get('Cache-Control')).toBe('private, no-store');
+    const payload = await response.json() as { data: { meta: { scan_id: string } } };
+    expect(payload.data.meta.scan_id).toBe('scan-123');
+  });
+});
+
+describe('Worker: Scan Collect (extended fingerprint)', () => {
+  it('accepts and stores additive extended fingerprint fields', async () => {
+    const env = createEnv();
+    const response = await app.request('/api/scan/collect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'cf-connecting-ip': '203.0.113.5' },
+      body: JSON.stringify({
+        scan_id: '11111111-1111-4111-8111-111111111111',
+        extended: {
+          math_hash: 'abc12345',
+          platform: 'MacIntel',
+          vendor: 'Google Inc.',
+          touch_points: 0,
+          color_depth: 24,
+          pixel_ratio: 2,
+          timezone_offset: -60,
+          media_devices: { audioinput: 1, audiooutput: 2, videoinput: 1 }
+        }
+      })
+    }, env);
+
+    expect(response.status).toBe(200);
+    const payload = await response.json() as {
+      data: { fingerprint: { extended?: { math_hash?: string; media_devices?: { videoinput: number } } } };
+    };
+    expect(payload.data.fingerprint.extended?.math_hash).toBe('abc12345');
+    expect(payload.data.fingerprint.extended?.media_devices?.videoinput).toBe(1);
+  });
+
+  it('omits extended when not provided (backward compatible)', async () => {
+    const env = createEnv();
+    const response = await app.request('/api/scan/collect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'cf-connecting-ip': '203.0.113.6' },
+      body: JSON.stringify({ scan_id: '22222222-2222-4222-8222-222222222222' })
+    }, env);
+
+    expect(response.status).toBe(200);
+    const payload = await response.json() as { data: { fingerprint: { extended?: unknown } } };
+    expect(payload.data.fingerprint.extended).toBeUndefined();
+  });
+
+  it('rejects out-of-range extended values', async () => {
+    const env = createEnv();
+    const response = await app.request('/api/scan/collect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'cf-connecting-ip': '203.0.113.7' },
+      body: JSON.stringify({
+        scan_id: '33333333-3333-4333-8333-333333333333',
+        extended: { touch_points: 9999 }
+      })
+    }, env);
+
+    expect(response.status).toBe(400);
   });
 });
 
@@ -128,8 +246,8 @@ describe('Worker: IP Lookup Tool', () => {
   });
 });
 
-describe('Worker: Port Scan Tool', () => {
-  it('returns port scan results with service names', async () => {
+describe('Worker: Network Exposure Assessment', () => {
+  it('returns IP intelligence and never claims a TCP port result', async () => {
     const env = createEnv();
     const response = await app.request('/api/tools/port-scan', {
       method: 'POST',
@@ -138,12 +256,24 @@ describe('Worker: Port Scan Tool', () => {
     }, env);
 
     expect(response.status).toBe(200);
-    const payload = await response.json() as { data: { ports: Array<{ port: number; service: string }> } };
+    const payload = await response.json() as {
+      data: {
+        capability: string;
+        tcp_scan_performed: boolean;
+        ports: Array<{ port: number; service: string; status: string }>;
+        assessment: { asn: string; risk_score: number };
+      };
+    };
+    expect(payload.data.capability).toBe('network_exposure_assessment');
+    expect(payload.data.tcp_scan_performed).toBe(false);
     expect(payload.data.ports).toHaveLength(3);
     expect(payload.data.ports[0].port).toBe(22);
     expect(payload.data.ports[0].service).toBe('SSH');
+    expect(payload.data.ports.every((port) => port.status === 'not_tested')).toBe(true);
     expect(payload.data.ports[1].service).toBe('HTTP');
     expect(payload.data.ports[2].service).toBe('HTTPS');
+    expect(payload.data.assessment).toHaveProperty('asn');
+    expect(payload.data.assessment).toHaveProperty('risk_score');
   });
 
   it('uses default ports when none specified', async () => {
@@ -464,7 +594,7 @@ describe('Worker: Error Handling', () => {
 });
 
 describe('Worker: DNS Leak Detection', () => {
-  it('detects secure DNS when using Cloudflare', async () => {
+  it('does not equate a public resolver address with encrypted DNS', async () => {
     const env = createEnv();
     const response = await app.request('/api/tools/leak-test', {
       method: 'POST',
@@ -475,11 +605,11 @@ describe('Worker: DNS Leak Detection', () => {
     }, env);
 
     const payload = await response.json() as { data: { dns: { status: string; is_secure_dns: boolean } } };
-    expect(payload.data.dns.status).toBe('SAFE');
-    expect(payload.data.dns.is_secure_dns).toBe(true);
+    expect(payload.data.dns.status).toBe('UNKNOWN');
+    expect(payload.data.dns.is_secure_dns).toBe(false);
   });
 
-  it('warns when using ISP DNS servers', async () => {
+  it('does not label unverified resolver addresses as an ISP leak', async () => {
     const env = createEnv();
     const response = await app.request('/api/tools/leak-test', {
       method: 'POST',
@@ -490,11 +620,11 @@ describe('Worker: DNS Leak Detection', () => {
     }, env);
 
     const payload = await response.json() as { data: { dns: { status: string; is_isp_dns: boolean } } };
-    expect(payload.data.dns.status).toBe('WARN');
-    expect(payload.data.dns.is_isp_dns).toBe(true);
+    expect(payload.data.dns.status).toBe('UNKNOWN');
+    expect(payload.data.dns.is_isp_dns).toBe(false);
   });
 
-  it('detects Google DNS as secure', async () => {
+  it('recognizes a public resolver identity without claiming secure transport', async () => {
     const env = createEnv();
     const response = await app.request('/api/tools/leak-test', {
       method: 'POST',
@@ -504,13 +634,17 @@ describe('Worker: DNS Leak Detection', () => {
       headers: { 'Content-Type': 'application/json', 'cf-connecting-ip': '203.0.113.1' }
     }, env);
 
-    const payload = await response.json() as { data: { dns: { is_secure_dns: boolean } } };
-    expect(payload.data.dns.is_secure_dns).toBe(true);
+    const payload = await response.json() as {
+      data: { dns: { is_public_resolver: boolean; is_secure_dns: boolean; transport: string } }
+    };
+    expect(payload.data.dns.is_public_resolver).toBe(true);
+    expect(payload.data.dns.is_secure_dns).toBe(false);
+    expect(payload.data.dns.transport).toBe('unknown');
   });
 });
 
 describe('Worker: IPv6 Leak Detection', () => {
-  it('reports safe when no IPv6 address detected', async () => {
+  it('keeps the result unknown when no IPv6 connection is observed', async () => {
     const env = createEnv();
     const response = await app.request('/api/tools/leak-test', {
       method: 'POST',
@@ -521,7 +655,7 @@ describe('Worker: IPv6 Leak Detection', () => {
     }, env);
 
     const payload = await response.json() as { data: { ipv6: { status: string; ipv6_leaked: boolean } } };
-    expect(payload.data.ipv6.status).toBe('SAFE');
+    expect(payload.data.ipv6.status).toBe('UNKNOWN');
     expect(payload.data.ipv6.ipv6_leaked).toBe(false);
   });
 
@@ -537,6 +671,24 @@ describe('Worker: IPv6 Leak Detection', () => {
 
     const payload = await response.json() as { data: { ipv6: { status: string } } };
     expect(payload.data.ipv6.status).toBe('SAFE');
+  });
+
+  it('reports public IPv6 reachability as unknown without VPN context', async () => {
+    const env = createEnv();
+    const response = await app.request('/api/tools/leak-test', {
+      method: 'POST',
+      body: JSON.stringify({
+        ipv6_address: '2001:4860:4860::8888'
+      }),
+      headers: { 'Content-Type': 'application/json', 'cf-connecting-ip': '203.0.113.1' }
+    }, env);
+
+    const payload = await response.json() as {
+      data: { ipv6: { status: string; ipv6_leaked: boolean; explanation: string } }
+    };
+    expect(payload.data.ipv6.status).toBe('UNKNOWN');
+    expect(payload.data.ipv6.ipv6_leaked).toBe(false);
+    expect(payload.data.ipv6.explanation).toContain('VPN context');
   });
 });
 

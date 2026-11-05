@@ -449,8 +449,14 @@ export function generateReportHtml(report: ScanReport): string {
           </div>
         </div>
         <div class="data-item">
-          <div class="data-label">TLS JA3 Hash</div>
-          <div class="data-value">${escapeHtml(report.network.protocols.tls_ja3)}</div>
+          <div class="data-label">Edge TLS Profile</div>
+          <div class="data-value">${escapeHtml(
+            report.network.protocols.tls_profile ??
+            report.network.protocols.tls_ja3 ??
+            'Unavailable'
+          )}</div>
+          <div class="data-label">TLS Cipher</div>
+          <div class="data-value">${escapeHtml(report.network.protocols.tls_cipher ?? 'Unavailable')}</div>
         </div>
         <div class="data-item">
           <div class="data-label">TLS Version</div>
